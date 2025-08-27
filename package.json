@@ -5,10 +5,15 @@
   "description": "Sistema de Rifas Online",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "lint": "eslint . --ext vue,js,jsx,cjs,mjs --fix --ignore-path .gitignore"
+    "dev": "vite --mode development",
+    "build": "vite build --mode production && npm run copy-redirects",
+    "copy-redirects": "echo '/*    /index.html   200' > dist/_redirects",
+    "build:dev": "vite build --mode development",
+    "preview": "vite preview --port $PORT --host 0.0.0.0",
+    "preview:local": "vite preview --port 4173",
+    "lint": "eslint . --ext vue,js,jsx,cjs,mjs --fix --ignore-path .gitignore",
+    "render:build": "npm ci && npm run build",
+    "render:start": "npm run preview"
   },
   "dependencies": {
     "vue": "^3.4.21",
@@ -29,5 +34,9 @@
     "frontend"
   ],
   "author": "Jonathan Trabach",
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  }
 }
