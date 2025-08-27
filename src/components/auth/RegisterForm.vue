@@ -1,58 +1,82 @@
 <template>
-  <form @submit.prevent="handleSubmit" class="register-form">
+  <form @submit.prevent="handleSubmit" class="register-form" novalidate>
     <div class="form-row">
       <div class="form-group">
-        <label for="name">Nome completo</label>
+        <label for="name">Nome completo *</label>
         <input
           id="name"
+          name="name"
           v-model="localForm.name"
           type="text"
           required
           :disabled="isSubmitting"
-          @input="$emit('input')"
+          :class="{ 'error': errors.name }"
+          @input="clearFieldError('name')"
+          @blur="validateName"
           placeholder="Seu nome completo"
         />
+        <div v-if="errors.name" class="field-error">
+          {{ errors.name }}
+        </div>
       </div>
       
       <div class="form-group">
-        <label for="phone">Telefone</label>
+        <label for="phone">Telefone *</label>
         <input
           id="phone"
+          name="phone"
           v-model="localForm.phone"
           type="tel"
           required
           :disabled="isSubmitting"
-          @input="$emit('input')"
+          :class="{ 'error': errors.phone }"
+          @input="handlePhoneInput"
+          @blur="validatePhone"
           placeholder="(11) 99999-9999"
+          maxlength="15"
         />
+        <div v-if="errors.phone" class="field-error">
+          {{ errors.phone }}
+        </div>
+        <small v-else class="field-hint">Formato: (xx) xxxxx-xxxx</small>
       </div>
     </div>
 
     <div class="form-group">
-      <label for="email">E-mail</label>
+      <label for="email">E-mail *</label>
       <input
         id="email"
+        name="email"
         v-model="localForm.email"
         type="email"
         required
         :disabled="isSubmitting"
-        @input="$emit('input')"
+        :class="{ 'error': errors.email }"
+        @input="clearFieldError('email')"
+        @blur="validateEmail"
         placeholder="seu@email.com"
       />
+      <div v-if="errors.email" class="field-error">
+        {{ errors.email }}
+      </div>
     </div>
 
     <div class="form-row">
       <div class="form-group">
-        <label for="password">Senha</label>
+        <label for="password">Senha *</label>
         <div class="password-input">
           <input
             id="password"
+            name="password"
             v-model="localForm.password"
             :type="showPassword ? 'text' : 'password'"
             required
             :disabled="isSubmitting"
-            @input="$emit('input')"
+            :class="{ 'error': errors.password }"
+            @input="clearFieldError('password')"
+            @blur="validatePassword"
             placeholder="Mínimo 6 caracteres"
+            minlength="6"
           />
           <button
             type="button"
@@ -68,19 +92,29 @@
             </svg>
           </button>
         </div>
+        <div v-if="errors.password" class="field-error">
+          {{ errors.password }}
+        </div>
+        <small v-else class="field-hint">Mínimo 6 caracteres</small>
       </div>
 
       <div class="form-group">
-        <label for="confirmPassword">Confirmar senha</label>
+        <label for="confirmPassword">Confirmar Senha *</label>
         <input
           id="confirmPassword"
+          name="confirmPassword"
           v-model="localForm.confirmPassword"
           type="password"
           required
           :disabled="isSubmitting"
-          @input="$emit('input')"
+          :class="{ 'error': errors.confirmPassword }"
+          @input="clearFieldError('confirmPassword')"
+          @blur="validateConfirmPassword"
           placeholder="Confirme sua senha"
         />
+        <div v-if="errors.confirmPassword" class="field-error">
+          {{ errors.confirmPassword }}
+        </div>
       </div>
     </div>
 
@@ -88,6 +122,7 @@
       <label for="company">Empresa (opcional)</label>
       <input
         id="company"
+        name="company"
         v-model="localForm.company"
         type="text"
         :disabled="isSubmitting"
@@ -96,23 +131,43 @@
       />
     </div>
 
-    <div class="form-group">
+    <div class="form-group checkbox-group">
       <label class="checkbox-label">
         <input
-          v-model="localForm.acceptTerms"
           type="checkbox"
+          name="acceptTerms"
+          v-model="localForm.acceptTerms"
           required
           :disabled="isSubmitting"
+          :class="{ 'error': errors.acceptTerms }"
+          @change="clearFieldError('acceptTerms')"
         />
-        <span class="checkmark"></span>
-        Aceito os <a href="#" class="terms-link">termos de uso</a> e <a href="#" class="terms-link">política de privacidade</a>
+        <span class="checkbox-text">
+          Aceito os <a href="#" class="terms-link">termos de uso</a> e <a href="#" class="terms-link">política de privacidade</a> *
+        </span>
       </label>
+      <div v-if="errors.acceptTerms" class="field-error">
+        {{ errors.acceptTerms }}
+      </div>
+    </div>
+
+    <!-- ✅ NOVO: Resumo dos erros -->
+    <div v-if="Object.keys(errors).length > 0" class="errors-summary">
+      <div class="errors-header">
+        <span class="error-icon">⚠️</span>
+        <span>Por favor, corrija os seguintes erros:</span>
+      </div>
+      <ul class="errors-list">
+        <li v-for="(error, field) in errors" :key="field" class="error-item">
+          {{ getFieldLabel(field) }}: {{ error }}
+        </li>
+      </ul>
     </div>
 
     <button
       type="submit"
       class="submit-button"
-      :disabled="isSubmitting"
+      :disabled="isSubmitting || !isFormValid"
     >
       <span v-if="!isSubmitting">Criar conta</span>
       <span v-else class="loading">
@@ -126,7 +181,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, reactive } from 'vue'
 
 const props = defineProps({
   form: Object,
@@ -136,30 +191,236 @@ const props = defineProps({
 const emit = defineEmits(['submit', 'input'])
 
 const showPassword = ref(false)
+const errors = reactive({})
 
+// ✅ NOVO: Formulário local para validação
 const localForm = computed({
   get: () => props.form,
-  set: (value) => {
-    Object.assign(props.form, value)
-  }
+  set: (value) => emit('input', value)
 })
 
-const handleSubmit = () => {
-  if (props.form.password !== props.form.confirmPassword) {
-    alert('As senhas não coincidem!')
-    return
+// ✅ NOVO: Validação em tempo real
+const isFormValid = computed(() => {
+  return localForm.value.name?.trim() &&
+         localForm.value.email?.trim() &&
+         localForm.value.phone?.trim() &&
+         localForm.value.password &&
+         localForm.value.confirmPassword &&
+         localForm.value.acceptTerms &&
+         Object.keys(errors).length === 0
+})
+
+// ✅ NOVO: Labels dos campos para mensagens de erro
+const getFieldLabel = (field) => {
+  const labels = {
+    name: 'Nome',
+    email: 'E-mail',
+    phone: 'Telefone',
+    password: 'Senha',
+    confirmPassword: 'Confirmação de senha',
+    acceptTerms: 'Termos de uso'
+  }
+  return labels[field] || field
+}
+
+// ✅ NOVO: Máscara para telefone
+const formatPhone = (value) => {
+  const numbers = value.replace(/\D/g, '')
+  
+  if (numbers.length <= 2) {
+    return `(${numbers}`
+  } else if (numbers.length <= 7) {
+    return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`
+  } else if (numbers.length <= 11) {
+    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`
+  } else {
+    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`
+  }
+}
+
+const handlePhoneInput = (event) => {
+  const formatted = formatPhone(event.target.value)
+  localForm.value.phone = formatted
+  clearFieldError('phone')
+  emit('input')
+}
+
+// ✅ NOVO: Validações específicas
+const validateName = () => {
+  const name = localForm.value.name?.trim()
+  if (!name) {
+    errors.name = 'Nome é obrigatório'
+    return false
+  }
+  if (name.length < 2) {
+    errors.name = 'Nome deve ter pelo menos 2 caracteres'
+    return false
+  }
+  delete errors.name
+  return true
+}
+
+const validateEmail = () => {
+  const email = localForm.value.email?.trim()
+  if (!email) {
+    errors.email = 'E-mail é obrigatório'
+    return false
   }
   
-  if (props.form.password.length < 6) {
-    alert('A senha deve ter pelo menos 6 caracteres!')
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(email)) {
+    errors.email = 'Formato de e-mail inválido'
+    return false
+  }
+  
+  delete errors.email
+  return true
+}
+
+const validatePhone = () => {
+  const phone = localForm.value.phone?.trim()
+  if (!phone) {
+    errors.phone = 'Telefone é obrigatório'
+    return false
+  }
+  
+  // Remover formatação para validar
+  const numbers = phone.replace(/\D/g, '')
+  if (numbers.length !== 11) {
+    errors.phone = 'Telefone deve estar no formato (xx) xxxxx-xxxx'
+    return false
+  }
+  
+  delete errors.phone
+  return true
+}
+
+const validatePassword = () => {
+  const password = localForm.value.password
+  if (!password) {
+    errors.password = 'Senha é obrigatória'
+    return false
+  }
+  
+  if (password.length < 6) {
+    errors.password = 'Senha deve ter pelo menos 6 caracteres'
+    return false
+  }
+  
+  delete errors.password
+  
+  // Revalidar confirmação se já foi preenchida
+  if (localForm.value.confirmPassword) {
+    validateConfirmPassword()
+  }
+  
+  return true
+}
+
+const validateConfirmPassword = () => {
+  const password = localForm.value.password
+  const confirmPassword = localForm.value.confirmPassword
+  
+  if (!confirmPassword) {
+    errors.confirmPassword = 'Confirmação de senha é obrigatória'
+    return false
+  }
+  
+  if (password !== confirmPassword) {
+    errors.confirmPassword = 'Senhas não coincidem'
+    return false
+  }
+  
+  delete errors.confirmPassword
+  return true
+}
+
+const validateTerms = () => {
+  if (!localForm.value.acceptTerms) {
+    errors.acceptTerms = 'É necessário aceitar os termos de uso'
+    return false
+  }
+  
+  delete errors.acceptTerms
+  return true
+}
+
+const clearFieldError = (field) => {
+  delete errors[field]
+  emit('input')
+}
+
+const validateAll = () => {
+  const validations = [
+    validateName(),
+    validateEmail(),
+    validatePhone(),
+    validatePassword(),
+    validateConfirmPassword(),
+    validateTerms()
+  ]
+  
+  return validations.every(Boolean)
+}
+
+// ✅ NOVO: Processar erros da API
+const processApiErrors = (apiErrors) => {
+  // Limpar erros anteriores
+  Object.keys(errors).forEach(key => delete errors[key])
+  
+  if (Array.isArray(apiErrors)) {
+    apiErrors.forEach(error => {
+      // Mapear campos da API para campos do formulário
+      const fieldMap = {
+        'name': 'name',
+        'email': 'email', 
+        'phone': 'phone',
+        'password': 'password'
+      }
+      
+      const fieldName = fieldMap[error.field] || error.field
+      
+      // Traduzir mensagens comuns
+      let message = error.message
+      if (message.includes('formato') && error.field === 'phone') {
+        message = 'Telefone deve estar no formato (xx) xxxxx-xxxx'
+      } else if (message.includes('required') || message.includes('obrigatório')) {
+        message = `${getFieldLabel(fieldName)} é obrigatório`
+      } else if (message.includes('invalid') && error.field === 'email') {
+        message = 'Formato de e-mail inválido'
+      }
+      
+      errors[fieldName] = message
+    })
+  }
+}
+
+const handleSubmit = () => {
+  if (!validateAll()) {
+    // Focar no primeiro campo com erro
+    const firstErrorField = Object.keys(errors)[0]
+    const element = document.querySelector(`[name="${firstErrorField}"]`)
+    if (element) {
+      element.focus()
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
     return
   }
   
   emit('submit', { ...props.form })
 }
 
-watch(() => props.form, () => {
-  emit('input')
+// ✅ EXPOR método para componente pai processar erros da API
+defineExpose({
+  processApiErrors,
+  validateAll
+})
+
+// ✅ Limpar erros quando formulário é resetado
+watch(() => props.form, (newForm) => {
+  if (!newForm.email && !newForm.password) {
+    Object.keys(errors).forEach(key => delete errors[key])
+  }
 }, { deep: true })
 </script>
 
@@ -172,6 +433,7 @@ watch(() => props.form, () => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
+  margin-bottom: 1rem;
 }
 
 .form-group {
@@ -186,10 +448,10 @@ watch(() => props.form, () => {
   font-size: 0.875rem;
 }
 
-.form-group input[type="email"],
-.form-group input[type="password"],
 .form-group input[type="text"],
-.form-group input[type="tel"] {
+.form-group input[type="email"],
+.form-group input[type="tel"],
+.form-group input[type="password"] {
   width: 100%;
   padding: 0.75rem 1rem;
   border: 2px solid #e5e7eb;
@@ -201,13 +463,18 @@ watch(() => props.form, () => {
 
 .form-group input:focus {
   outline: none;
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-.form-group input:disabled {
-  background: #f9fafb;
-  cursor: not-allowed;
+.form-group input.error {
+  border-color: #ef4444;
+  background-color: #fef2f2;
+}
+
+.form-group input.error:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
 }
 
 .password-input {
@@ -228,13 +495,8 @@ watch(() => props.form, () => {
   transition: color 0.2s ease;
 }
 
-.toggle-password:hover:not(:disabled) {
+.toggle-password:hover {
   color: #374151;
-}
-
-.toggle-password:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
 }
 
 .toggle-password svg {
@@ -242,87 +504,121 @@ watch(() => props.form, () => {
   height: 20px;
 }
 
+.checkbox-group {
+  margin-bottom: 1rem;
+}
+
 .checkbox-label {
-  display: flex !important;
+  display: flex;
   align-items: flex-start;
-  gap: 0.5rem;
+  gap: 0.75rem;
   cursor: pointer;
-  font-weight: 400 !important;
-  margin-bottom: 0 !important;
+  font-size: 0.875rem;
   line-height: 1.5;
 }
 
 .checkbox-label input[type="checkbox"] {
-  display: none;
-}
-
-.checkmark {
-  width: 20px;
-  height: 20px;
-  border: 2px solid #e5e7eb;
-  border-radius: 6px;
-  position: relative;
-  transition: all 0.2s ease;
+  margin: 0.125rem 0 0 0;
   flex-shrink: 0;
-  margin-top: 2px;
 }
 
-.checkbox-label input[type="checkbox"]:checked + .checkmark {
-  background: #4f46e5;
-  border-color: #4f46e5;
-}
-
-.checkbox-label input[type="checkbox"]:checked + .checkmark::after {
-  content: '';
-  position: absolute;
-  left: 6px;
-  top: 2px;
-  width: 6px;
-  height: 10px;
-  border: solid white;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
+.checkbox-text {
+  color: #6b7280;
 }
 
 .terms-link {
-  color: #4f46e5;
+  color: #3b82f6;
   text-decoration: none;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .terms-link:hover {
   text-decoration: underline;
 }
 
+.field-error {
+  color: #ef4444;
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.field-error::before {
+  content: "⚠️";
+  font-size: 0.875rem;
+}
+
+.field-hint {
+  color: #6b7280;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  display: block;
+}
+
+/* ✅ NOVO: Resumo de erros */
+.errors-summary {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.errors-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  color: #dc2626;
+  margin-bottom: 0.5rem;
+}
+
+.error-icon {
+  font-size: 1.125rem;
+}
+
+.errors-list {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.error-item {
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
 .submit-button {
   width: 100%;
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  padding: 0.875rem 1rem;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
   color: white;
   border: none;
-  padding: 0.875rem 1.5rem;
   border-radius: 12px;
-  font-weight: 600;
   font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  margin-bottom: 1.5rem;
-}
-
-.submit-button:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
-}
-
-.submit-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-.loading {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  min-height: 48px;
+}
+
+.submit-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.submit-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .loading svg {
@@ -332,17 +628,18 @@ watch(() => props.form, () => {
 }
 
 @keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .form-row {
     grid-template-columns: 1fr;
+    gap: 0;
+  }
+  
+  .form-group input {
+    font-size: 16px; /* Previne zoom no iOS */
   }
 }
 </style>

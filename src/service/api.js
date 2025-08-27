@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-// ✅ CORRIGIDO: Função para obter a base URL usando VITE_API_URL
+// ✅ CORRIGIDO: Função para obter a base URL focada no Render
 const getApiBaseUrl = () => {
   const envUrl = import.meta.env.VITE_API_URL
   const mode = import.meta.env.MODE || 'development'
@@ -15,19 +15,19 @@ const getApiBaseUrl = () => {
     'allEnvVars': import.meta.env
   })
   
-  // ✅ VALIDAÇÃO: Se a variável está definida, usar ela
+  // ✅ Se a variável está definida, usar ela
   if (envUrl && envUrl.trim() !== '') {
     console.log('✅ API Base URL carregada do .env:', envUrl)
     return envUrl.trim()
   }
   
-  // ✅ FALLBACK: Auto-detecção baseada no hostname (caso a env não carregue)
+  // ✅ CORRIGIDO: Auto-detecção baseada no hostname (focado no Render)
   let autoDetectedUrl = null
   
-  if (hostname.includes('netlify.app') || hostname.includes('app-ouro-rifa')) {
-    // Produção no Netlify
-    autoDetectedUrl = 'https://ouro-rifa-api-trabach-softwares.netlify.app/api'
-    console.log('🌐 Auto-detectado ambiente NETLIFY')
+  if (hostname.includes('onrender.com')) {
+    // Produção no Render
+    autoDetectedUrl = 'https://ouro-rifa-api.onrender.com/api'
+    console.log('🌐 Auto-detectado ambiente RENDER')
   } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
     // Desenvolvimento local
     autoDetectedUrl = 'http://localhost:3000/api'
@@ -35,9 +35,9 @@ const getApiBaseUrl = () => {
   } else {
     console.error('❌ VITE_API_URL não configurada e hostname desconhecido!')
     console.error('📋 Hostname atual:', hostname)
-    // Como último recurso, usar a URL de produção
-    autoDetectedUrl = 'https://ouro-rifa-api-trabach-softwares.netlify.app/api'
-    console.log('🆘 Usando URL de produção como último recurso')
+    // Como último recurso, usar a URL do Render
+    autoDetectedUrl = 'https://ouro-rifa-api.onrender.com/api'
+    console.log('🆘 Usando URL do Render como último recurso')
   }
   
   console.log('🔄 API Base URL auto-detectada:', autoDetectedUrl)

@@ -13,7 +13,7 @@
           <!-- Loading Overlay -->
           <LoadingOverlay v-if="isSubmitting" :is-login="isLogin" />
 
-          <!-- ✅ CORRIGIDO: Mobile Header com logo e nome corretos -->
+          <!-- Mobile Header -->
           <div class="mobile-brand-header mobile-only">
             <div class="mobile-brand">
               <img src="@/assets/logo.png" alt="Ouro Rifa" class="brand-logo-img" />
@@ -42,6 +42,7 @@
           <!-- Login Form -->
           <LoginForm 
             v-if="isLogin"
+            ref="loginFormRef"
             :form="loginForm"
             :is-submitting="isSubmitting"
             @submit="handleLogin"
@@ -51,6 +52,7 @@
           <!-- Register Form -->
           <RegisterForm 
             v-else
+            ref="registerFormRef"
             :form="registerForm"
             :is-submitting="isSubmitting"
             @submit="handleRegister"
@@ -98,6 +100,10 @@ import LoadingOverlay from '@/components/auth/LoadingOverlay.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
+
+// ✅ NOVO: Refs para os formulários
+const loginFormRef = ref(null)
+const registerFormRef = ref(null)
 
 // State
 const isLogin = ref(true)
@@ -213,11 +219,37 @@ const handleRegister = async (formData) => {
         }
       }, 1000)
     } else {
-      showAlert('error', 'Erro no cadastro', result.error || 'Não foi possível criar a conta.')
+      // ✅ NOVO: Tratar erros específicos da API
+      if (result.errors && Array.isArray(result.errors)) {
+        // Processar erros específicos de campos
+        registerFormRef.value?.processApiErrors(result.errors)
+        
+        // Criar mensagem resumida
+        const errorFields = result.errors.map(err => {
+          const fieldLabels = {
+            'name': 'Nome',
+            'email': 'E-mail',
+            'phone': 'Telefone',
+            'password': 'Senha'
+          }
+          return fieldLabels[err.field] || err.field
+        })
+        
+        showAlert('error', 'Dados inválidos', `Verifique: ${errorFields.join(', ')}`)
+      } else {
+        showAlert('error', 'Erro no cadastro', result.error || 'Não foi possível criar a conta.')
+      }
     }
   } catch (error) {
     console.error('Erro no registro:', error)
-    showAlert('error', 'Erro de conexão', 'Verifique sua conexão e tente novamente.')
+    
+    // ✅ NOVO: Tratar erros específicos da resposta da API
+    if (error.response?.data?.errors) {
+      registerFormRef.value?.processApiErrors(error.response.data.errors)
+      showAlert('error', 'Dados inválidos', 'Por favor, corrija os erros destacados nos campos.')
+    } else {
+      showAlert('error', 'Erro de conexão', 'Verifique sua conexão e tente novamente.')
+    }
   } finally {
     isSubmitting.value = false
   }

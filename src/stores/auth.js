@@ -1,5 +1,5 @@
+import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
 import { authAPI } from '@/service/api'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -162,20 +162,49 @@ export const useAuthStore = defineStore('auth', () => {
 
   const register = async (userData) => {
     try {
-      console.log('📝 AUTH STORE: Iniciando registro...')
-      const response = await authAPI.register(userData)
+      isLoading.value = true
+      console.log('📝 AUTH STORE: Iniciando registro...', userData)
       
-      if (response.data.success) {
+      // ✅ CORRIGIDO: Preparar dados conforme esperado pela API
+      const registrationData = {
+        name: userData.name?.trim() || '',
+        email: userData.email?.trim() || '',
+        phone: userData.phone?.trim() || '',
+        password: userData.password || '',
+        company: userData.company?.trim() || '',
+        // Remover campos que não são enviados para API
+        // confirmPassword e acceptTerms são apenas para validação frontend
+      }
+      
+      console.log('📤 AUTH STORE: Dados de registro preparados:', registrationData)
+      
+      const response = await authAPI.register(registrationData)
+      console.log('📥 AUTH STORE: Resposta do registro:', response.data)
+      
+      if (response.data.success || response.status === 201) {
+        console.log('✅ AUTH STORE: Registro realizado com sucesso')
         return { success: true, message: 'Conta criada com sucesso!' }
       } else {
         throw new Error(response.data.message || 'Erro no cadastro')
       }
     } catch (error) {
       console.error('💥 AUTH STORE: Erro no registro:', error)
-      return { 
-        success: false, 
-        error: error.message || 'Erro ao criar conta' 
+      
+      // ✅ NOVO: Retornar erros estruturados
+      if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        return { 
+          success: false, 
+          error: error.response.data.message || 'Dados de entrada inválidos',
+          errors: error.response.data.errors
+        }
+      } else {
+        return { 
+          success: false, 
+          error: error.response?.data?.message || error.message || 'Erro ao criar conta'
+        }
       }
+    } finally {
+      isLoading.value = false
     }
   }
   

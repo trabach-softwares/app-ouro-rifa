@@ -6,14 +6,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite --mode development",
-    "build": "vite build --mode production && npm run copy-redirects",
-    "copy-redirects": "echo '/*    /index.html   200' > dist/_redirects",
-    "build:dev": "vite build --mode development",
+    "build": "vite build --mode production && echo '/*    /index.html   200' > dist/_redirects",
     "preview": "vite preview --port $PORT --host 0.0.0.0",
     "preview:local": "vite preview --port 4173",
     "lint": "eslint . --ext vue,js,jsx,cjs,mjs --fix --ignore-path .gitignore",
-    "render:build": "npm ci && npm run build",
-    "render:start": "npm run preview"
+    "start": "vite preview --port $PORT --host 0.0.0.0",
+    "render:build": "npm ci && npm run build"
   },
   "dependencies": {
     "vue": "^3.4.21",
