@@ -1,30 +1,47 @@
 import axios from 'axios'
 
-// ✅ MELHORADO: Função para obter a base URL com validação e debug
+// ✅ CORRIGIDO: Função para obter a base URL usando VITE_API_URL
 const getApiBaseUrl = () => {
   const envUrl = import.meta.env.VITE_API_URL
+  const mode = import.meta.env.MODE || 'development'
+  const hostname = window?.location?.hostname || 'localhost'
   
   console.log('🔧 API CONFIG DEBUG:', {
-    'import.meta.env': import.meta.env,
-    'VITE_API_URL': envUrl,
-    'typeof': typeof envUrl,
-    'isUndefined': envUrl === undefined,
-    'isEmpty': envUrl === '',
-    'length': envUrl?.length || 0
+    'import.meta.env.VITE_API_URL': envUrl,
+    'import.meta.env.MODE': mode,
+    'window.location.hostname': hostname,
+    'import.meta.env.PROD': import.meta.env.PROD,
+    'import.meta.env.DEV': import.meta.env.DEV,
+    'allEnvVars': import.meta.env
   })
   
-  // ✅ Validar se a URL foi carregada corretamente
-  if (!envUrl || envUrl === undefined || envUrl.trim() === '') {
-    console.error('❌ VITE_API_URL não está definida ou está vazia!')
-    console.error('📋 Verifique:')
-    console.error('   1. Se o arquivo .env existe na raiz do projeto')
-    console.error('   2. Se a variável está definida como: VITE_API_URL=sua_url_aqui')
-    console.error('   3. Se o servidor foi reiniciado após criar/modificar o .env')
-    throw new Error('URL da API não configurada. Verifique a variável VITE_API_URL no arquivo .env')
+  // ✅ VALIDAÇÃO: Se a variável está definida, usar ela
+  if (envUrl && envUrl.trim() !== '') {
+    console.log('✅ API Base URL carregada do .env:', envUrl)
+    return envUrl.trim()
   }
   
-  console.log('✅ API Base URL carregada:', envUrl)
-  return envUrl.trim()
+  // ✅ FALLBACK: Auto-detecção baseada no hostname (caso a env não carregue)
+  let autoDetectedUrl = null
+  
+  if (hostname.includes('netlify.app') || hostname.includes('app-ouro-rifa')) {
+    // Produção no Netlify
+    autoDetectedUrl = 'https://ouro-rifa-api-trabach-softwares.netlify.app/api'
+    console.log('🌐 Auto-detectado ambiente NETLIFY')
+  } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    // Desenvolvimento local
+    autoDetectedUrl = 'http://localhost:3000/api'
+    console.log('💻 Auto-detectado ambiente LOCAL')
+  } else {
+    console.error('❌ VITE_API_URL não configurada e hostname desconhecido!')
+    console.error('📋 Hostname atual:', hostname)
+    // Como último recurso, usar a URL de produção
+    autoDetectedUrl = 'https://ouro-rifa-api-trabach-softwares.netlify.app/api'
+    console.log('🆘 Usando URL de produção como último recurso')
+  }
+  
+  console.log('🔄 API Base URL auto-detectada:', autoDetectedUrl)
+  return autoDetectedUrl
 }
 
 // Configuração base do axios
@@ -40,7 +57,9 @@ const api = axios.create({
 console.log('🚀 AXIOS CONFIGURADO:', {
   baseURL: api.defaults.baseURL,
   timeout: api.defaults.timeout,
-  headers: api.defaults.headers
+  hostname: window?.location?.hostname,
+  mode: import.meta.env.MODE,
+  isProduction: import.meta.env.PROD
 })
 
 // Função helper para verificar se o token está expirado
