@@ -17,7 +17,23 @@
         </div>
       </div>
 
-      <!-- Alert -->
+      <!-- ✅ Alert de Erros em Destaque -->
+      <div v-if="hasValidationErrors" class="validation-errors-alert">
+        <div class="alert-header">
+          <div class="alert-icon">⚠️</div>
+          <div>
+            <strong>Dados inválidos</strong>
+            <p>Por favor, corrija os seguintes erros:</p>
+          </div>
+        </div>
+        <ul class="errors-list">
+          <li v-for="(error, field) in errors" :key="field" class="error-item">
+            <strong>{{ getFieldLabel(field) }}:</strong> {{ error }}
+          </li>
+        </ul>
+      </div>
+
+      <!-- Alert de Sucesso/Erro -->
       <div v-if="alert.message" :class="['alert', alert.type]">
         <div class="alert-content">
           <strong>{{ alert.title }}</strong>
@@ -30,367 +46,357 @@
       <div class="form-container">
         <form @submit.prevent="criarRifa" class="main-form">
           
-          <!-- Form Fields -->
+          <!-- ✅ Nome da Campanha -->
           <div class="form-section">
-            <p class="form-intro">Insira os dados de como deseja a sua campanha abaixo, eles poderão ser editados depois:</p>
-            
-            <!-- Title -->
+            <h3 class="section-title">Como ela vai se chamar?</h3>
             <div class="form-group">
-              <label for="title">Título</label>
               <input
-                id="title"
                 v-model="form.title"
                 type="text"
-                placeholder="Digite o título da sua campanha"
+                placeholder="Ex: R$ 5.000,00 em Dinheiro via PIX"
                 :class="{ 'error': errors.title }"
                 :disabled="isLoading"
+                maxlength="150"
+                @input="clearFieldError('title')"
               />
-              <div v-if="errors.title" class="field-error">{{ errors.title }}</div>
+              <div v-if="errors.title" class="field-error">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"/>
+                </svg>
+                {{ errors.title }}
+              </div>
             </div>
+          </div>
 
-            <!-- Description -->
+          <!-- ✅ Descrição -->
+          <div class="form-section">
+            <h3 class="section-title">Descrição</h3>
             <div class="form-group">
-              <label for="description">Descrição</label>
               <textarea
-                id="description"
                 v-model="form.description"
-                placeholder="Descreva os detalhes da sua campanha..."
-                rows="3"
+                placeholder="Concorra a R$ 5.000,00 que serão transferidos via PIX imediatamente após o sorteio!"
+                rows="4"
                 :class="{ 'error': errors.description }"
                 :disabled="isLoading"
+                minlength="10"
+                @input="clearFieldError('description')"
               ></textarea>
-              <div v-if="errors.description" class="field-error">{{ errors.description }}</div>
+              <small class="field-hint">Mínimo 10 caracteres</small>
+              <div v-if="errors.description" class="field-error">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"/>
+                </svg>
+                {{ errors.description }}
+              </div>
             </div>
+          </div>
 
-            <!-- ✅ NOVO: Imagem principal da rifa -->
+          <!-- ✅ Telefone de Contato -->
+          <div class="form-section">
+            <h3 class="section-title">Telefone de contato público</h3>
             <div class="form-group">
-              <label for="mainImage">Imagem da campanha *</label>
               <input
-                ref="mainImageInputRef"
-                type="file"
-                accept="image/*"
-                @change="handleMainImageSelect"
-                style="display: none"
-              />
-              
-              <div class="main-image-upload-area" @click="selectMainImage">
-                <div v-if="selectedMainImageFile || form.imageUrl" class="image-preview">
-                  <img 
-                    :src="mainImagePreviewUrl || form.imageUrl" 
-                    :alt="form.title || 'Preview da campanha'" 
-                    class="main-image"
-                  />
-                  <button @click.stop="removeMainImage" class="remove-btn" type="button">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
-                    </svg>
-                  </button>
-                </div>
-                
-                <div v-else class="upload-placeholder">
-                  <div class="upload-icon">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
-                    </svg>
-                  </div>
-                  <p>Clique para adicionar imagem da campanha</p>
-                  <small>PNG, JPG até 5MB</small>
-                </div>
-              </div>
-              
-              <div v-if="errors.imageUrl" class="field-error">{{ errors.imageUrl }}</div>
-            </div>
-
-            <!-- Phone -->
-            <div class="form-group">
-              <label for="phone">
-                Telefone público para contato
-                <span class="optional">?</span>
-              </label>
-              <div class="phone-input">
-                <select class="country-code">
-                  <option value="+55">🇧🇷</option>
-                </select>
-                <input
-                  id="phone"
-                  v-model="form.phone"
-                  type="tel"
-                  placeholder="Digite o número do telefone"
-                  :disabled="isLoading"
-                />
-              </div>
-            </div>
-
-            <!-- Category -->
-            <div class="form-group">
-              <label for="category">Categoria</label>
-              <select
-                id="category"
-                v-model="form.category"
+                v-model="form.publicContactPhone"
+                type="tel"
+                placeholder="(11) 98765-4321"
+                :class="{ 'error': errors.publicContactPhone }"
                 :disabled="isLoading"
-              >
-                <option value="">Selecionar...</option>
-                <option value="electronics">Eletrônicos</option>
-                <option value="vehicles">Veículos</option>
-                <option value="money">Dinheiro</option>
-                <option value="others">Outros</option>
-              </select>
+                @input="clearFieldError('publicContactPhone')"
+                @keyup="formatPhone"
+              />
+              <small class="field-hint">Formato: (11) 99999-9999</small>
+              <div v-if="errors.publicContactPhone" class="field-error">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"/>
+                </svg>
+                {{ errors.publicContactPhone }}
+              </div>
             </div>
+          </div>
 
-            <!-- Tickets and Price -->
+          <!-- ✅ Imagem Principal -->
+          <div class="form-section">
+            <h3 class="section-title">Imagem principal</h3>
+            <input
+              ref="imageInputRef"
+              type="file"
+              accept="image/*"
+              @change="handleImageSelect"
+              style="display: none"
+            />
+            
+            <div 
+              class="image-upload-area" 
+              :class="{ 'error-border': errors.image }"
+              @click="selectImage"
+            >
+              <div v-if="selectedImage" class="image-preview">
+                <img :src="selectedImage.preview" alt="Preview da imagem" />
+                <button @click.stop="removeImage" type="button" class="remove-image-btn">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                  </svg>
+                </button>
+              </div>
+              
+              <div v-else class="upload-placeholder">
+                <div class="upload-icon">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3,4V1H5V4H8V6H5V9H3V6H0V4H3M6,10V7H9V4H16L17.83,6H22A2,2 0 0,1 24,8V20A2,2 0 0,1 22,22H6A2,2 0 0,1 4,20V12A2,2 0 0,1 6,10Z"/>
+                  </svg>
+                </div>
+                <p>Clique para selecionar uma imagem</p>
+                <small>PNG, JPG até 5MB</small>
+              </div>
+            </div>
+            
+            <div v-if="errors.image" class="field-error">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"/>
+              </svg>
+              {{ errors.image }}
+            </div>
+          </div>
+
+          <!-- ✅ Categoria -->
+          <div class="form-section">
+            <h3 class="section-title">Categoria</h3>
+            <div class="form-group">
+              <div class="select-wrapper" :class="{ 'error': errors.category }">
+                <select v-model="form.category" :disabled="isLoading" @change="clearFieldError('category')">
+                  <option value="ELECTRONICS">Eletrônicos</option>
+                  <option value="AUTOMOTIVE">Automóveis</option>
+                  <option value="REAL_ESTATE">Imóveis</option>
+                  <option value="MONEY">Dinheiro</option>
+                  <option value="OTHER">Outros</option>
+                </select>
+                <div class="select-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7,10L12,15L17,10H7Z"/>
+                  </svg>
+                </div>
+              </div>
+              <div v-if="errors.category" class="field-error">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"/>
+                </svg>
+                {{ errors.category }}
+              </div>
+            </div>
+          </div>
+
+          <!-- ✅ Configuração dos Bilhetes -->
+          <div class="form-section">
+            <h3 class="section-title">Configuração dos bilhetes</h3>
+            
             <div class="form-row">
               <div class="form-group">
-                <label for="totalTickets">
-                  Bilhetes
-                  <span class="optional">?</span>
-                </label>
+                <label>Quantidade total de bilhetes</label>
                 <input
-                  id="totalTickets"
-                  v-model="form.totalTickets"
+                  v-model.number="form.totalTickets"
                   type="number"
-                  placeholder="Digite a quantidade de bilhetes"
+                  placeholder="500"
                   min="10"
-                  max="100000"
+                  max="10000"
+                  step="1"
                   :class="{ 'error': errors.totalTickets }"
                   :disabled="isLoading"
+                  @input="clearFieldError('totalTickets')"
                 />
-                <div v-if="errors.totalTickets" class="field-error">{{ errors.totalTickets }}</div>
+                <small class="field-hint">Entre 10 e 10.000 bilhetes</small>
+                <div v-if="errors.totalTickets" class="field-error">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"/>
+                  </svg>
+                  {{ errors.totalTickets }}
+                </div>
               </div>
 
               <div class="form-group">
-                <label for="ticketPrice">Valor por bilhete</label>
-                <input
-                  id="ticketPrice"
-                  v-model="form.ticketPrice"
-                  type="number"
-                  step="0.01"
-                  placeholder="R$ 0,00"
-                  min="0.01"
-                  :class="{ 'error': errors.ticketPrice }"
-                  :disabled="isLoading"
-                />
-                <div v-if="errors.ticketPrice" class="field-error">{{ errors.ticketPrice }}</div>
+                <label>Valor por bilhete</label>
+                <div class="currency-input">
+                  <span class="currency-symbol">R$</span>
+                  <input
+                    v-model.number="form.ticketPrice"
+                    type="number"
+                    step="0.01"
+                    placeholder="25,00"
+                    min="0.01"
+                    :class="{ 'error': errors.ticketPrice }"
+                    :disabled="isLoading"
+                    @input="clearFieldError('ticketPrice')"
+                  />
+                </div>
+                <small class="field-hint">Valor mínimo: R$ 0,01</small>
+                <div v-if="errors.ticketPrice" class="field-error">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"/>
+                  </svg>
+                  {{ errors.ticketPrice }}
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- Modelo Section -->
-          <div class="form-section">
-            <h3 class="section-title">Modelo</h3>
-            
-            <div class="model-options">
-              <!-- Aleatório -->
-              <label class="model-option" :class="{ active: form.model === 'random' }">
-                <input 
-                  type="radio" 
-                  v-model="form.model" 
-                  value="random"
-                  style="display: none"
-                />
-                <div class="model-preview">
-                  <div class="random-grid">
-                    <div class="number-cell">+1</div>
-                    <div class="number-cell">+5</div>
-                    <div class="number-cell">+25</div>
-                    <div class="number-cell">+50</div>
-                  </div>
-                </div>
-                <div class="model-info">
-                  <h4>Aleatório</h4>
-                  <p>O usuário recebe bilhetes aleatórios</p>
-                </div>
-              </label>
-
-              <!-- Escolher Bilhetes -->
-              <label class="model-option" :class="{ active: form.model === 'choose' }">
-                <input 
-                  type="radio" 
-                  v-model="form.model" 
-                  value="choose"
-                  style="display: none"
-                />
-                <div class="model-preview">
-                  <div class="choose-grid">
-                    <div class="number-cell">000</div>
-                    <div class="number-cell">001</div>
-                    <div class="number-cell">002</div>
-                    <div class="number-cell">003</div>
-                    <div class="number-cell">004</div>
-                    <div class="number-cell">005</div>
-                    <div class="number-cell">006</div>
-                    <div class="number-cell">007</div>
-                    <div class="number-cell">008</div>
-                    <div class="number-cell">009</div>
-                    <div class="number-cell">010</div>
-                    <div class="number-cell">011</div>
-                  </div>
-                </div>
-                <div class="model-info">
-                  <h4>Mostrar os bilhetes</h4>
-                  <p>O usuário seleciona os bilhetes que desejar</p>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          <!-- Draw Date Section -->
-          <div class="form-section">
-            <div class="toggle-group">
-              <label class="toggle-label">
-                <span>Informar data do sorteio</span>
-                <span class="optional">Opcional</span>
-                <div class="toggle">
-                  <input 
-                    type="checkbox" 
-                    v-model="form.hasDrawDate"
-                  />
-                  <span class="toggle-slider"></span>
-                </div>
-              </label>
-            </div>
-
-            <div v-if="form.hasDrawDate" class="form-group">
-              <label for="endDate">Data do sorteio</label>
-              <input
-                id="endDate"
-                v-model="form.endDate"
-                type="datetime-local"
-                :min="minDateTime"
-                :class="{ 'error': errors.endDate }"
-                :disabled="isLoading"
-              />
-              <div v-if="errors.endDate" class="field-error">{{ errors.endDate }}</div>
-            </div>
-          </div>
-
-          <!-- Payment Expiration -->
-          <div class="form-section">
-            <div class="form-group">
-              <label for="paymentExpiration">
-                Tempo para um pedido expirar
-                <span class="optional">?</span>
-              </label>
-              <div class="time-input">
+            <!-- Configurações de compra -->
+            <div class="form-row">
+              <div class="form-group">
+                <label>Mín. por compra</label>
                 <input
-                  id="paymentExpiration"
-                  v-model="form.paymentExpirationValue"
+                  v-model.number="form.settings.minTicketsPerPurchase"
                   type="number"
+                  placeholder="1"
                   min="1"
                   :disabled="isLoading"
                 />
-                <select v-model="form.paymentExpirationUnit" :disabled="isLoading">
-                  <option value="minutes">Minutos</option>
-                  <option value="hours">Horas</option>
-                  <option value="days">Dias</option>
-                </select>
+              </div>
+              
+              <div class="form-group">
+                <label>Máx. por pessoa</label>
+                <input
+                  v-model.number="form.settings.maxTicketsPerPerson"
+                  type="number"
+                  placeholder="100"
+                  min="1"
+                  :disabled="isLoading"
+                />
               </div>
             </div>
           </div>
 
-          <!-- ✅ ATUALIZADO: Prêmio(s) Section - Apenas texto -->
+          <!-- ✅ Tipo de Sorteio -->
           <div class="form-section">
-            <h2 class="section-title">Prêmio(s)</h2>
-            <p class="section-subtitle">Insira um ou mais prêmios que os ganhadores serão contemplados:</p>
+            <h3 class="section-title">Por onde será feito o sorteio?</h3>
+            <div class="form-group">
+              <div class="select-wrapper" :class="{ 'error': errors.drawType }">
+                <select v-model="form.drawType" :disabled="isLoading" @change="clearFieldError('drawType')">
+                  <option value="sorteador_com_br">Sorteador.com.br</option>
+                  <option value="federal_lottery">Loteria Federal</option>
+                  <option value="manual">Sorteio Manual</option>
+                </select>
+                <div class="select-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7,10L12,15L17,10H7Z"/>
+                  </svg>
+                </div>
+              </div>
+              <div v-if="errors.drawType" class="field-error">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"/>
+                </svg>
+                {{ errors.drawType }}
+              </div>
+            </div>
+          </div>
+
+          <!-- ✅ Prêmios -->
+          <div class="form-section">
+            <h3 class="section-title">Prêmios</h3>
             
-            <!-- Lista de prêmios -->
             <div v-if="form.prizes.length > 0" class="prizes-list">
               <div 
                 v-for="(prize, index) in form.prizes" 
                 :key="index"
                 class="prize-item"
               >
-                <div class="prize-icon">
-                  🏆
-                </div>
+                <span class="prize-position">{{ prize.position }}º</span>
                 <div class="prize-info">
-                  <h4>{{ prize.title || `${index + 1}º Prêmio` }}</h4>
+                  <strong>{{ prize.name }}</strong>
                   <p v-if="prize.description">{{ prize.description }}</p>
-                  <p v-else class="no-description">Sem descrição</p>
                 </div>
-                <div class="prize-actions">
-                  <button @click="editPrize(index)" type="button" class="btn-edit">
-                    ✏️
-                  </button>
-                  <button @click="removePrize(index)" type="button" class="btn-remove">
-                    🗑️
-                  </button>
-                </div>
+                <button @click="removePrize(index)" type="button" class="remove-prize-btn">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"/>
+                  </svg>
+                </button>
               </div>
             </div>
             
-            <!-- Botão adicionar prêmio -->
             <button 
-              @click="openPrizeModal()" 
+              @click="showPrizeModal = true" 
               type="button" 
-              class="add-prize-btn"
-              :class="{ 'first-prize': form.prizes.length === 0 }"
+              :class="['add-prize-btn', { 'error-border': errors.prizes }]"
             >
-              <div class="add-prize-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
-                </svg>
-              </div>
-              <span>{{ form.prizes.length === 0 ? 'Adicionar 1º prêmio' : `Adicionar ${form.prizes.length + 1}º prêmio` }}</span>
+              <div class="add-icon">+</div>
+              <span>{{ form.prizes.length === 0 ? 'Adicionar Prêmios' : 'Adicionar mais prêmios' }}</span>
             </button>
             
-            <div v-if="errors.prizes" class="field-error">{{ errors.prizes }}</div>
+            <div v-if="errors.prizes" class="field-error">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"/>
+              </svg>
+              {{ errors.prizes }}
+            </div>
+          </div>
+
+          <!-- ✅ Configurações adicionais -->
+          <div class="form-section">
+            <h3 class="section-title">Configurações</h3>
+            
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input
+                  v-model="form.settings.showBuyersList"
+                  type="checkbox"
+                />
+                <span class="checkmark"></span>
+                Mostrar lista de compradores
+              </label>
+            </div>
+
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input
+                  v-model="form.settings.autoApprovePayments"
+                  type="checkbox"
+                />
+                <span class="checkmark"></span>
+                Aprovar pagamentos automaticamente
+              </label>
+            </div>
           </div>
 
           <!-- Action Buttons -->
           <div class="form-actions">
-            <button 
-              type="button" 
-              @click="salvarRascunho" 
-              class="btn btn-outline"
-              :disabled="isLoading || isDraftLoading || !canSaveDraft"
-            >
-              <span v-if="isDraftLoading">⏳ Salvando...</span>
-              <span v-else">💾 Salvar Rascunho</span>
-            </button>
-            
             <button 
               type="submit" 
               class="btn btn-primary"
               :disabled="isLoading || !isFormValid"
             >
               <span v-if="isLoading">⏳ Criando...</span>
-              <span v-else">🚀 Criar Campanha</span>
+              <span v-else>Criar Campanha</span>
             </button>
           </div>
         </form>
       </div>
     </div>
 
-    <!-- ✅ ATUALIZADO: Modal para adicionar/editar prêmio - Sem upload de imagem -->
+    <!-- ✅ Modal para prêmios -->
     <div v-if="showPrizeModal" class="modal-overlay" @click="closePrizeModal">
       <div class="modal" @click.stop>
         <div class="modal-header">
-          <h3>{{ editingPrizeIndex !== null ? 'Editar' : 'Adicionar' }} {{ getPrizePosition() }} prêmio</h3>
+          <h3>Adicionar prêmio</h3>
           <button @click="closePrizeModal" class="modal-close">×</button>
         </div>
         
         <div class="modal-body">
           <div class="form-group">
-            <label for="prizeTitle">Nome do prêmio *</label>
+            <label for="prizeName">Nome do prêmio *</label>
             <input
-              id="prizeTitle"
-              v-model="currentPrize.title"
+              id="prizeName"
+              v-model="currentPrize.name"
               type="text"
-              placeholder="Ex: iPhone 15 Pro Max 256GB"
+              placeholder="Ex: R$ 5.000,00 via PIX"
               class="form-input"
             />
           </div>
           
           <div class="form-group">
-            <label for="prizeDescription">
-              Descrição
-              <span class="optional">Opcional</span>
-            </label>
+            <label for="prizeDescription">Descrição</label>
             <textarea
               id="prizeDescription"
               v-model="currentPrize.description"
-              placeholder="Descreva detalhes do prêmio..."
-              rows="4"
+              placeholder="Cinco mil reais transferidos via PIX para o ganhador"
+              rows="3"
               class="form-input"
             ></textarea>
           </div>
@@ -400,8 +406,8 @@
           <button @click="closePrizeModal" type="button" class="btn btn-outline">
             Cancelar
           </button>
-          <button @click="savePrize" type="button" class="btn btn-primary">
-            {{ editingPrizeIndex !== null ? 'Salvar' : 'Adicionar' }}
+          <button @click="addPrize" type="button" class="btn btn-primary">
+            Adicionar
           </button>
         </div>
       </div>
@@ -410,7 +416,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { rifasAPI } from '@/service/api'
 import { useMessage } from '@/composables/message'
@@ -420,7 +426,6 @@ const router = useRouter()
 const { showMessage } = useMessage()
 
 const isLoading = ref(false)
-const isDraftLoading = ref(false)
 
 // Alert state
 const alert = ref({
@@ -432,175 +437,167 @@ const alert = ref({
 // Errors state
 const errors = ref({})
 
-// ✅ ATUALIZADO: Modal de prêmios (sem imagem)
+// Modal de prêmios
 const showPrizeModal = ref(false)
-const editingPrizeIndex = ref(null)
 const currentPrize = ref({
-  title: '',
+  name: '',
   description: ''
 })
 
-// ✅ NOVO: File handling para imagem principal
-const mainImageInputRef = ref(null)
-const selectedMainImageFile = ref(null)
-const mainImagePreviewUrl = ref('')
+// File input ref
+const imageInputRef = ref(null)
 
-// Form data
+// Image state
+const selectedImage = ref(null)
+
+// ✅ Form data seguindo exatamente o CURL correto
 const form = ref({
   title: '',
   description: '',
-  phone: '',
-  category: '',
-  totalTickets: '',
-  ticketPrice: '',
-  model: 'choose', // 'random' ou 'choose'
-  hasDrawDate: false,
-  endDate: '',
-  paymentExpirationValue: 1,
-  paymentExpirationUnit: 'days',
-  imageUrl: '', // Para imagem principal
-  // ✅ ATUALIZADO: Array de prêmios (apenas texto)
+  publicContactPhone: '',
+  category: 'MONEY',
+  totalTickets: 500,
+  ticketPrice: 25.00,
+  drawType: 'sorteador_com_br',
+  campaignImages: [], // ✅ Array vazio como no CURL
   prizes: [],
-  // Hidden fields required by API
-  maxTicketsPerPerson: 50,
-  allowComments: true,
-  autoApprovePayments: false,
-  publishImmediately: false
+  settings: {
+    minTicketsPerPurchase: 1,
+    maxTicketsPerPerson: 100,
+    showBuyersList: false,
+    autoApprovePayments: true
+  }
 })
 
 // Computed properties
-const minDateTime = computed(() => {
-  const now = new Date()
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
-  return now.toISOString().slice(0, 16)
+const hasValidationErrors = computed(() => {
+  return Object.keys(errors.value).length > 0
 })
 
 const isFormValid = computed(() => {
   return form.value.title &&
          form.value.description &&
-         (form.value.imageUrl || selectedMainImageFile.value) &&
-         form.value.prizes.length > 0 &&
-         form.value.ticketPrice &&
+         form.value.publicContactPhone &&
          form.value.totalTickets &&
-         (!form.value.hasDrawDate || form.value.endDate) &&
+         form.value.ticketPrice &&
+         form.value.drawType &&
+         form.value.prizes.length > 0 &&
          Object.keys(errors.value).length === 0
 })
 
-const canSaveDraft = computed(() => {
-  return form.value.title || form.value.phone || form.value.prizes.length > 0 || selectedMainImageFile.value
-})
-
-// ✅ NOVO: Métodos para imagem principal
-const selectMainImage = () => {
-  mainImageInputRef.value?.click()
+// ✅ Função para limpar erro específico
+const clearFieldError = (fieldName) => {
+  if (errors.value[fieldName]) {
+    delete errors.value[fieldName]
+  }
 }
 
-const handleMainImageSelect = (event) => {
+// Função para obter label do campo em português
+const getFieldLabel = (field) => {
+  const labels = {
+    'title': 'Nome da campanha',
+    'description': 'Descrição',
+    'publicContactPhone': 'Telefone de contato',
+    'image': 'Imagem',
+    'category': 'Categoria',
+    'totalTickets': 'Quantidade de bilhetes',
+    'ticketPrice': 'Valor do bilhete',
+    'drawType': 'Tipo de sorteio',
+    'prizes': 'Prêmios'
+  }
+  return labels[field] || field
+}
+
+// ✅ Formatação de telefone
+const formatPhone = (event) => {
+  let value = event.target.value.replace(/\D/g, '')
+  
+  if (value.length <= 11) {
+    value = value.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3')
+    value = value.replace(/^(\d{2})(\d{4})(\d{0,4})$/, '($1) $2-$3')
+    value = value.replace(/^(\d{2})(\d{0,5})$/, '($1) $2')
+    value = value.replace(/^(\d{0,2})$/, '($1')
+    
+    form.value.publicContactPhone = value
+  }
+}
+
+// ✅ Métodos para imagem
+const selectImage = () => {
+  imageInputRef.value?.click()
+}
+
+const handleImageSelect = (event) => {
   const file = event.target.files[0]
-  if (file) {
-    // Validate file
-    if (!file.type.startsWith('image/')) {
-      showMessage('Por favor, selecione apenas arquivos de imagem', 'error')
-      return
+  if (!file) return
+  
+  if (!file.type.startsWith('image/')) {
+    showMessage('Apenas arquivos de imagem são permitidos', 'error')
+    return
+  }
+  
+  if (file.size > 5 * 1024 * 1024) {
+    showMessage('Arquivo muito grande. Máximo 5MB', 'error')
+    return
+  }
+  
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    selectedImage.value = {
+      file: file,
+      preview: e.target.result
     }
-    
-    if (file.size > 5 * 1024 * 1024) { // 5MB
-      showMessage('Arquivo muito grande. Máximo 5MB', 'error')
-      return
-    }
-    
-    selectedMainImageFile.value = file
-    
-    // Create preview
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      mainImagePreviewUrl.value = e.target.result
-    }
-    reader.readAsDataURL(file)
-    
-    // Clear image error if exists
-    if (errors.value.imageUrl) {
-      delete errors.value.imageUrl
-    }
-    
-    console.log('📁 Imagem principal selecionada:', file.name)
+  }
+  reader.readAsDataURL(file)
+  
+  if (errors.value.image) {
+    delete errors.value.image
   }
 }
 
-const removeMainImage = () => {
-  selectedMainImageFile.value = null
-  mainImagePreviewUrl.value = ''
-  form.value.imageUrl = ''
-  
-  if (mainImageInputRef.value) {
-    mainImageInputRef.value.value = ''
+const removeImage = () => {
+  selectedImage.value = null
+  if (imageInputRef.value) {
+    imageInputRef.value.value = ''
   }
 }
 
-// ✅ ATUALIZADO: Métodos para prêmios (sem imagem)
-const openPrizeModal = (index = null) => {
-  editingPrizeIndex.value = index
-  
-  if (index !== null) {
-    // Editando prêmio existente
-    currentPrize.value = { ...form.value.prizes[index] }
-  } else {
-    // Novo prêmio
-    currentPrize.value = {
-      title: '',
-      description: ''
-    }
-  }
-  
-  showPrizeModal.value = true
-}
-
+// ✅ Métodos para prêmios
 const closePrizeModal = () => {
   showPrizeModal.value = false
-  editingPrizeIndex.value = null
   currentPrize.value = {
-    title: '',
+    name: '',
     description: ''
   }
 }
 
-const getPrizePosition = () => {
-  if (editingPrizeIndex.value !== null) {
-    return `${editingPrizeIndex.value + 1}º`
-  }
-  return `${form.value.prizes.length + 1}º`
-}
-
-const savePrize = () => {
-  if (!currentPrize.value.title.trim()) {
+const addPrize = () => {
+  if (!currentPrize.value.name.trim()) {
     showMessage('Nome do prêmio é obrigatório', 'error')
     return
   }
   
-  if (editingPrizeIndex.value !== null) {
-    // Editando prêmio existente
-    form.value.prizes[editingPrizeIndex.value] = { ...currentPrize.value }
-  } else {
-    // Adicionando novo prêmio
-    form.value.prizes.push({ ...currentPrize.value })
-  }
+  form.value.prizes.push({
+    id: `prize_${Date.now()}`,
+    name: currentPrize.value.name,
+    description: currentPrize.value.description || '',
+    position: form.value.prizes.length + 1
+  })
   
   closePrizeModal()
   
-  // Clear prizes error if exists
   if (errors.value.prizes) {
     delete errors.value.prizes
   }
 }
 
-const editPrize = (index) => {
-  openPrizeModal(index)
-}
-
 const removePrize = (index) => {
-  if (confirm('Tem certeza que deseja remover este prêmio?')) {
-    form.value.prizes.splice(index, 1)
-  }
+  form.value.prizes.splice(index, 1)
+  
+  // Reordenar posições
+  form.value.prizes.forEach((prize, idx) => {
+    prize.position = idx + 1
+  })
 }
 
 // Alert methods
@@ -615,144 +612,199 @@ const clearAlert = () => {
   alert.value = { type: '', title: '', message: '' }
 }
 
-// Validation
+// ✅ Processamento de erros da API
+const processApiErrors = (apiErrors) => {
+  errors.value = {}
+  
+  if (Array.isArray(apiErrors)) {
+    console.log('🚨 Processando erros da API:', apiErrors)
+    
+    apiErrors.forEach(error => {
+      const fieldName = error.field
+      let message = error.message
+      
+      // ✅ Traduzir mensagens de erro mais comuns
+      const translations = {
+        'title is required': 'Nome da campanha é obrigatório',
+        'description is required': 'Descrição é obrigatória',
+        'publicContactPhone is required': 'Telefone de contato é obrigatório',
+        'totalTickets is required': 'Quantidade de bilhetes é obrigatória',
+        'ticketPrice is required': 'Valor do bilhete é obrigatório',
+        'prizes is required': 'Pelo menos um prêmio é obrigatório',
+        'description must be at least 10 characters': 'Descrição deve ter pelo menos 10 caracteres',
+        'publicContactPhone must be in format (11) 99999-9999': 'Telefone deve estar no formato (11) 99999-9999'
+      }
+      
+      if (translations[message]) {
+        message = translations[message]
+      }
+      
+      errors.value[fieldName] = message
+    })
+    
+    console.log('✅ Erros processados:', errors.value)
+  }
+}
+
+// ✅ Validação melhorada
 const validateForm = () => {
   errors.value = {}
   let isValid = true
 
-  // Title validation
+  // Título
   if (!form.value.title?.trim()) {
-    errors.value.title = 'Título é obrigatório'
+    errors.value.title = 'Nome da campanha é obrigatório'
+    isValid = false
+  } else if (form.value.title.trim().length < 3) {
+    errors.value.title = 'Nome da campanha deve ter pelo menos 3 caracteres'
     isValid = false
   }
 
-  // Description validation
+  // Descrição
   if (!form.value.description?.trim()) {
     errors.value.description = 'Descrição é obrigatória'
     isValid = false
-  }
-
-  // Image validation (imagem principal)
-  if (!form.value.imageUrl?.trim() && !selectedMainImageFile.value) {
-    errors.value.imageUrl = 'Imagem da campanha é obrigatória'
+  } else if (form.value.description.trim().length < 10) {
+    errors.value.description = 'Descrição deve ter pelo menos 10 caracteres'
     isValid = false
   }
 
-  // Prizes validation
+  // Telefone
+  if (!form.value.publicContactPhone?.trim()) {
+    errors.value.publicContactPhone = 'Telefone de contato é obrigatório'
+    isValid = false
+  } else {
+    const phoneNumbers = form.value.publicContactPhone.replace(/\D/g, '')
+    if (phoneNumbers.length !== 11) {
+      errors.value.publicContactPhone = 'Telefone deve estar no formato (11) 99999-9999'
+      isValid = false
+    }
+  }
+
+  // Quantidade de bilhetes
+  if (!form.value.totalTickets) {
+    errors.value.totalTickets = 'Quantidade de bilhetes é obrigatória'
+    isValid = false
+  } else if (form.value.totalTickets < 10) {
+    errors.value.totalTickets = 'Quantidade de bilhetes deve ser pelo menos 10'
+    isValid = false
+  } else if (form.value.totalTickets > 10000) {
+    errors.value.totalTickets = 'Quantidade de bilhetes deve ser no máximo 10.000'
+    isValid = false
+  }
+
+  // Valor do bilhete
+  if (!form.value.ticketPrice) {
+    errors.value.ticketPrice = 'Valor do bilhete é obrigatório'
+    isValid = false
+  } else if (form.value.ticketPrice <= 0) {
+    errors.value.ticketPrice = 'Valor do bilhete deve ser maior que zero'
+    isValid = false
+  } else if (form.value.ticketPrice < 0.01) {
+    errors.value.ticketPrice = 'Valor mínimo do bilhete é R$ 0,01'
+    isValid = false
+  }
+
+  // Tipo de sorteio
+  if (!form.value.drawType) {
+    errors.value.drawType = 'Tipo de sorteio é obrigatório'
+    isValid = false
+  }
+
+  // Prêmios
   if (form.value.prizes.length === 0) {
     errors.value.prizes = 'Pelo menos um prêmio é obrigatório'
     isValid = false
   }
 
-  // Price validation
-  const ticketPrice = parseFloat(form.value.ticketPrice)
-  if (!form.value.ticketPrice || isNaN(ticketPrice) || ticketPrice <= 0) {
-    errors.value.ticketPrice = 'Valor deve ser maior que zero'
-    isValid = false
-  }
-
-  // Tickets validation
-  const totalTickets = parseInt(form.value.totalTickets)
-  if (!form.value.totalTickets || isNaN(totalTickets) || totalTickets < 10) {
-    errors.value.totalTickets = 'Mínimo 10 bilhetes'
-    isValid = false
-  }
-
-  // End date validation (if enabled)
-  if (form.value.hasDrawDate && !form.value.endDate) {
-    errors.value.endDate = 'Data do sorteio é obrigatória'
-    isValid = false
-  } else if (form.value.hasDrawDate && form.value.endDate) {
-    const endDate = new Date(form.value.endDate)
-    const now = new Date()
-    if (endDate <= now) {
-      errors.value.endDate = 'Data deve ser no futuro'
-      isValid = false
-    }
-  }
-
   return isValid
 }
 
-// Prepare FormData for API according to curl
-const prepareFormData = (status = 'draft') => {
-  const formData = new FormData()
-  
-  // Required fields from curl
-  formData.append('title', form.value.title?.trim() || '')
-  formData.append('description', form.value.description?.trim() || 'Descrição automática')
-  formData.append('ticketPrice', parseFloat(form.value.ticketPrice || 0))
-  formData.append('totalTickets', parseInt(form.value.totalTickets || 0))
-  
-  // End date
-  if (form.value.hasDrawDate && form.value.endDate) {
-    formData.append('endDate', new Date(form.value.endDate).toISOString())
+// ✅ Preparar FormData ou JSON dependendo da presença de imagem
+const prepareData = () => {
+  if (selectedImage.value) {
+    // Se tem imagem, usar FormData
+    const formData = new FormData()
+    
+    // Imagem
+    formData.append('image', selectedImage.value.file)
+    
+    // Campos básicos
+    formData.append('title', form.value.title?.trim() || '')
+    formData.append('description', form.value.description?.trim() || '')
+    formData.append('publicContactPhone', form.value.publicContactPhone?.trim() || '')
+    formData.append('category', form.value.category)
+    formData.append('totalTickets', parseInt(form.value.totalTickets))
+    formData.append('ticketPrice', parseFloat(form.value.ticketPrice))
+    formData.append('drawType', form.value.drawType)
+    
+    // Prêmios
+    form.value.prizes.forEach((prize, index) => {
+      formData.append(`prizes[${index}][id]`, prize.id)
+      formData.append(`prizes[${index}][name]`, prize.name)
+      formData.append(`prizes[${index}][description]`, prize.description)
+      formData.append(`prizes[${index}][position]`, prize.position)
+    })
+    
+    // Settings
+    formData.append('settings[minTicketsPerPurchase]', form.value.settings.minTicketsPerPurchase)
+    formData.append('settings[maxTicketsPerPerson]', form.value.settings.maxTicketsPerPerson)
+    formData.append('settings[showBuyersList]', form.value.settings.showBuyersList)
+    formData.append('settings[autoApprovePayments]', form.value.settings.autoApprovePayments)
+    
+    return { data: formData, hasImage: true }
   } else {
-    // Default: 30 days from now
-    const defaultEnd = new Date()
-    defaultEnd.setDate(defaultEnd.getDate() + 30)
-    formData.append('endDate', defaultEnd.toISOString())
-  }
-  
-  // ✅ ATUALIZADO: Imagem principal da rifa
-  if (selectedMainImageFile.value) {
-    formData.append('image', selectedMainImageFile.value)
-  }
-  
-  // ✅ ATUALIZADO: Prêmios (apenas texto)
-  formData.append('prizes', JSON.stringify(form.value.prizes.map(prize => ({
-    title: prize.title,
-    description: prize.description || ''
-  }))))
-  
-  // Settings from curl
-  formData.append('settings[maxTicketsPerPerson]', form.value.maxTicketsPerPerson || 50)
-  formData.append('settings[allowComments]', form.value.allowComments.toString())
-  formData.append('settings[autoApprovePayments]', form.value.autoApprovePayments.toString())
-  
-  return formData
-}
-
-// Save draft
-const salvarRascunho = async () => {
-  try {
-    clearAlert()
-    isDraftLoading.value = true
-    
-    const formData = prepareFormData('draft')
-    const response = await rifasAPI.createWithImage(formData)
-    
-    if (response && (response.status === 200 || response.status === 201)) {
-      showAlert('success', 'Rascunho salvo!', 'Sua campanha foi salva como rascunho.')
-      setTimeout(() => {
-        router.push('/rifas')
-      }, 2000)
-    } else {
-      throw new Error('Erro ao salvar rascunho')
+    // Se não tem imagem, usar JSON
+    const jsonData = {
+      title: form.value.title?.trim() || '',
+      description: form.value.description?.trim() || '',
+      publicContactPhone: form.value.publicContactPhone?.trim() || '',
+      category: form.value.category,
+      totalTickets: parseInt(form.value.totalTickets) || 0,
+      ticketPrice: parseFloat(form.value.ticketPrice) || 0,
+      drawType: form.value.drawType,
+      campaignImages: [], // Array vazio
+      prizes: form.value.prizes.map(prize => ({
+        id: prize.id,
+        name: prize.name,
+        description: prize.description,
+        position: prize.position
+      })),
+      settings: {
+        minTicketsPerPurchase: parseInt(form.value.settings.minTicketsPerPurchase) || 1,
+        maxTicketsPerPerson: parseInt(form.value.settings.maxTicketsPerPerson) || 100,
+        showBuyersList: Boolean(form.value.settings.showBuyersList),
+        autoApprovePayments: Boolean(form.value.settings.autoApprovePayments)
+      }
     }
-  } catch (error) {
-    console.error('Erro ao salvar rascunho:', error)
-    const errorMessage = error.response?.data?.message || error.message || 'Erro ao salvar rascunho'
-    showAlert('error', 'Erro', errorMessage)
-  } finally {
-    isDraftLoading.value = false
+    
+    return { data: jsonData, hasImage: false }
   }
 }
 
-// Create raffle
 const criarRifa = async () => {
   try {
     clearAlert()
     
     if (!validateForm()) {
-      showAlert('error', 'Dados inválidos', 'Por favor, corrija os erros antes de continuar.')
+      console.log('❌ Validação falhou:', errors.value)
       return
     }
     
     isLoading.value = true
     
-    const formData = prepareFormData('pending')
-    const response = await rifasAPI.createWithImage(formData)
+    const { data, hasImage } = prepareData()
+    
+    console.log('📤 Enviando dados para API:', data)
+    
+    let response
+    if (hasImage) {
+      // ✅ Usar endpoint /raffles/with-image com FormData
+      response = await rifasAPI.createWithImage(data)
+    } else {
+      // ✅ Usar endpoint /raffles com JSON
+      response = await rifasAPI.create(data)
+    }
     
     if (response && (response.status === 200 || response.status === 201)) {
       showAlert('success', 'Campanha criada!', 'Sua campanha foi criada com sucesso!')
@@ -763,22 +815,20 @@ const criarRifa = async () => {
       throw new Error('Erro ao criar campanha')
     }
   } catch (error) {
-    console.error('Erro ao criar campanha:', error)
-    const errorMessage = error.response?.data?.message || error.message || 'Erro ao criar campanha'
-    showAlert('error', 'Erro', errorMessage)
+    console.error('💥 Erro ao criar campanha:', error)
+    
+    // Processar erros específicos da API
+    if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+      console.log('🚨 Erros da API detectados:', error.response.data.errors)
+      processApiErrors(error.response.data.errors)
+    } else {
+      const errorMessage = error.response?.data?.message || error.message || 'Erro ao criar campanha'
+      showAlert('error', 'Erro', errorMessage)
+    }
   } finally {
     isLoading.value = false
   }
 }
-
-onMounted(() => {
-  // Set default end date to 30 days from now
-  const defaultEndDate = new Date()
-  defaultEndDate.setDate(defaultEndDate.getDate() + 30)
-  defaultEndDate.setHours(23, 59, 0, 0)
-  defaultEndDate.setMinutes(defaultEndDate.getMinutes() - defaultEndDate.getTimezoneOffset())
-  form.value.endDate = defaultEndDate.toISOString().slice(0, 16)
-})
 </script>
 
 <style scoped>
@@ -831,6 +881,63 @@ onMounted(() => {
   margin: 0.25rem 0 0 0;
   color: #64748b;
   font-size: 0.9rem;
+}
+
+/* ✅ Alert de erros em destaque */
+.validation-errors-alert {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-left: 4px solid #ef4444;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 12px rgba(239, 68, 68, 0.1);
+}
+
+.alert-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.alert-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.alert-header strong {
+  color: #dc2626;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  display: block;
+}
+
+.alert-header p {
+  color: #7f1d1d;
+  margin: 0;
+}
+
+.errors-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.error-item {
+  color: #7f1d1d;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #fecaca;
+  font-size: 0.9rem;
+}
+
+.error-item:last-child {
+  border-bottom: none;
+}
+
+.error-item strong {
+  color: #dc2626;
 }
 
 /* Alert */
@@ -894,225 +1001,20 @@ onMounted(() => {
 /* Form Sections */
 .form-section {
   margin-bottom: 2.5rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .form-section:last-child {
   margin-bottom: 0;
+  border-bottom: none;
 }
 
 .section-title {
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: 1.125rem;
+  font-weight: 600;
   color: #1e293b;
-  margin: 0 0 0.5rem 0;
-}
-
-.section-subtitle {
-  color: #64748b;
-  margin: 0 0 1.5rem 0;
-  font-size: 0.9rem;
-}
-
-.form-intro {
-  color: #64748b;
-  margin: 0 0 1.5rem 0;
-  font-size: 0.9rem;
-}
-
-/* ✅ NOVO: Upload de imagem principal */
-.main-image-upload-area {
-  border: 2px dashed #cbd5e1;
-  border-radius: 16px;
-  padding: 2rem;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  background: #f8fafc;
-  position: relative;
-  min-height: 200px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.main-image-upload-area:hover {
-  border-color: #3b82f6;
-  background: #f1f5f9;
-}
-
-.image-preview {
-  position: relative;
-  max-width: 400px;
-  width: 100%;
-}
-
-.main-image {
-  width: 100%;
-  height: 250px;
-  object-fit: cover;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.remove-btn {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  background: #ef4444;
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  transition: all 0.2s ease;
-}
-
-.remove-btn:hover {
-  background: #dc2626;
-  transform: scale(1.1);
-}
-
-.upload-placeholder .upload-icon {
-  color: #94a3b8;
-  margin-bottom: 1rem;
-}
-
-.upload-placeholder p {
-  color: #475569;
-  font-weight: 600;
-  margin: 0 0 0.25rem 0;
-  font-size: 1.1rem;
-}
-
-.upload-placeholder small {
-  color: #94a3b8;
-  font-size: 0.8rem;
-}
-
-/* ✅ ATUALIZADO: Lista de prêmios (sem imagem) */
-.prizes-list {
-  margin-bottom: 1.5rem;
-}
-
-.prize-item {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  margin-bottom: 1rem;
-  background: #fafafa;
-}
-
-.prize-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #ffd700, #ffed4a);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  flex-shrink: 0;
-}
-
-.prize-info {
-  flex: 1;
-}
-
-.prize-info h4 {
-  margin: 0 0 0.25rem 0;
-  color: #1e293b;
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.prize-info p {
-  margin: 0;
-  color: #64748b;
-  font-size: 0.875rem;
-  line-height: 1.4;
-}
-
-.no-description {
-  font-style: italic;
-  color: #94a3b8;
-}
-
-.prize-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.btn-edit,
-.btn-remove {
-  background: white;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  padding: 0.5rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 0.875rem;
-}
-
-.btn-edit:hover {
-  background: #f1f5f9;
-  border-color: #3b82f6;
-}
-
-.btn-remove:hover {
-  background: #fef2f2;
-  border-color: #ef4444;
-}
-
-/* Botão adicionar prêmio */
-.add-prize-btn {
-  width: 100%;
-  padding: 2rem;
-  border: 2px dashed #cbd5e1;
-  border-radius: 12px;
-  background: #f8fafc;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  color: #64748b;
-  font-weight: 600;
-}
-
-.add-prize-btn:hover {
-  border-color: #3b82f6;
-  background: #f1f5f9;
-  color: #3b82f6;
-}
-
-.add-prize-btn.first-prize {
-  padding: 3rem;
-}
-
-.add-prize-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: #e2e8f0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #64748b;
-  transition: all 0.3s ease;
-}
-
-.add-prize-btn:hover .add-prize-icon {
-  background: #3b82f6;
-  color: white;
+  margin: 0 0 1rem 0;
 }
 
 /* Form Groups */
@@ -1120,32 +1022,21 @@ onMounted(() => {
   margin-bottom: 1.5rem;
 }
 
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-}
-
 .form-group label {
   display: block;
-  font-weight: 600;
+  font-weight: 500;
   color: #374151;
   margin-bottom: 0.5rem;
-  font-size: 0.9rem;
-}
-
-.optional {
-  color: #94a3b8;
-  font-weight: 400;
+  font-size: 0.875rem;
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
   width: 100%;
-  padding: 0.875rem 1rem;
+  padding: 0.75rem 1rem;
   border: 1px solid #d1d5db;
-  border-radius: 12px;
+  border-radius: 8px;
   font-size: 0.9rem;
   transition: all 0.2s ease;
   background: white;
@@ -1160,167 +1051,286 @@ onMounted(() => {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+/* Error states */
 .form-group input.error,
 .form-group select.error,
 .form-group textarea.error {
-  border-color: #ef4444;
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+  border-color: #ef4444 !important;
+  background-color: #fef2f2 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
 }
 
+.error-border {
+  border-color: #ef4444 !important;
+  background-color: #fef2f2 !important;
+}
+
+/* Field error */
 .field-error {
   color: #ef4444;
-  font-size: 0.8rem;
-  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
   font-weight: 500;
-}
-
-/* Phone Input */
-.phone-input {
   display: flex;
+  align-items: center;
   gap: 0.5rem;
+  padding: 0.5rem;
+  background: #fef2f2;
+  border-radius: 6px;
+  border: 1px solid #fecaca;
 }
 
-.country-code {
-  width: 80px !important;
+.field-error svg {
   flex-shrink: 0;
 }
 
-/* Time Input */
-.time-input {
-  display: flex;
-  gap: 0.5rem;
+/* ✅ Field hint */
+.field-hint {
+  color: #6b7280;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  display: block;
 }
 
-.time-input input {
-  flex: 1;
-}
-
-.time-input select {
-  width: 120px;
-}
-
-/* Model Options */
-.model-options {
+/* Form row */
+.form-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
 }
 
-.model-option {
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 1.5rem;
+/* Select wrapper */
+.select-wrapper {
+  position: relative;
+}
+
+.select-wrapper select {
+  appearance: none;
+  background: white;
+  padding-right: 3rem;
   cursor: pointer;
-  transition: all 0.2s ease;
 }
 
-.model-option:hover {
-  border-color: #3b82f6;
+.select-wrapper.error select {
+  border-color: #ef4444 !important;
+  background-color: #fef2f2 !important;
 }
 
-.model-option.active {
-  border-color: #3b82f6;
-  background: #f1f5f9;
+.select-icon {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: #6b7280;
 }
 
-.model-preview {
-  margin-bottom: 1rem;
-}
-
-.random-grid {
+/* Currency Input */
+.currency-input {
+  position: relative;
   display: flex;
-  gap: 0.5rem;
+  align-items: center;
+}
+
+.currency-symbol {
+  position: absolute;
+  left: 1rem;
+  color: #6b7280;
+  font-weight: 600;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.currency-input input {
+  padding-left: 2.5rem !important;
+}
+
+/* ✅ Image Upload */
+.image-upload-area {
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 2rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #f8fafc;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
   justify-content: center;
 }
 
-.choose-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.25rem;
-}
-
-.number-cell {
+.image-upload-area:hover {
+  border-color: #3b82f6;
   background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  padding: 0.5rem;
+}
+
+.image-upload-area.error-border {
+  border-color: #ef4444;
+  background: #fef2f2;
+}
+
+.image-preview {
+  position: relative;
+  max-width: 300px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.image-preview img {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.remove-image-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.upload-placeholder {
   text-align: center;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #475569;
+  color: #6b7280;
 }
 
-.model-info h4 {
-  margin: 0 0 0.5rem 0;
-  color: #1e293b;
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.model-info p {
-  margin: 0;
-  color: #64748b;
-  font-size: 0.9rem;
-}
-
-/* Toggle */
-.toggle-group {
+.upload-icon {
   margin-bottom: 1rem;
 }
 
-.toggle-label {
+.upload-placeholder p {
+  margin: 0.5rem 0;
+  font-weight: 500;
+}
+
+.upload-placeholder small {
+  color: #9ca3af;
+}
+
+/* Prizes */
+.prizes-list {
+  margin-bottom: 1rem;
+}
+
+.prize-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  font-weight: 600;
-  color: #374151;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  background: #fafafa;
 }
 
-.toggle {
-  position: relative;
-  width: 48px;
-  height: 24px;
-}
-
-.toggle input {
-  display: none;
-}
-
-.toggle-slider {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: #cbd5e1;
-  border-radius: 24px;
-  transition: all 0.3s ease;
-  cursor: pointer;
-}
-
-.toggle-slider:before {
-  content: '';
-  position: absolute;
-  height: 20px;
-  width: 20px;
-  left: 2px;
-  bottom: 2px;
-  background: white;
-  border-radius: 50%;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.toggle input:checked + .toggle-slider {
+.prize-position {
   background: #3b82f6;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  min-width: 24px;
+  text-align: center;
 }
 
-.toggle input:checked + .toggle-slider:before {
-  transform: translateX(24px);
+.prize-info {
+  flex: 1;
 }
 
-/* Modal styles */
+.prize-info strong {
+  display: block;
+  color: #1e293b;
+  margin-bottom: 0.25rem;
+}
+
+.prize-info p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+.remove-prize-btn {
+  background: #fee2e2;
+  color: #dc2626;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.remove-prize-btn:hover {
+  background: #fecaca;
+}
+
+/* Add button */
+.add-prize-btn {
+  width: 100%;
+  background: transparent;
+  border: 2px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.add-prize-btn:hover {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.add-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+.add-prize-btn:hover .add-icon {
+  background: #3b82f6;
+  color: white;
+}
+
+/* Checkbox */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 400 !important;
+  margin-bottom: 0 !important;
+}
+
+.checkbox-label input {
+  margin-right: 0.75rem;
+  width: auto !important;
+}
+
+/* Modal */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -1337,7 +1347,7 @@ onMounted(() => {
 
 .modal {
   background: white;
-  border-radius: 16px;
+  border-radius: 12px;
   width: 100%;
   max-width: 500px;
   max-height: 90vh;
@@ -1355,8 +1365,8 @@ onMounted(() => {
 
 .modal-header h3 {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: 1.125rem;
+  font-weight: 600;
   color: #1e293b;
 }
 
@@ -1368,11 +1378,6 @@ onMounted(() => {
   color: #94a3b8;
   padding: 0;
   line-height: 1;
-  transition: color 0.2s ease;
-}
-
-.modal-close:hover {
-  color: #64748b;
 }
 
 .modal-body {
@@ -1388,10 +1393,27 @@ onMounted(() => {
   background: #fafafa;
 }
 
-/* Buttons */
+/* Form Input Style */
+.form-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  background: white;
+  font-family: inherit;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Action Buttons */
 .form-actions {
   display: flex;
-  gap: 1rem;
   justify-content: flex-end;
   margin-top: 2rem;
   padding-top: 2rem;
@@ -1400,7 +1422,7 @@ onMounted(() => {
 
 .btn {
   padding: 0.875rem 2rem;
-  border-radius: 12px;
+  border-radius: 8px;
   font-weight: 600;
   font-size: 0.9rem;
   cursor: pointer;
@@ -1414,7 +1436,6 @@ onMounted(() => {
 .btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-  transform: none !important;
 }
 
 .btn-outline {
@@ -1429,14 +1450,12 @@ onMounted(() => {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  background: #4c63d2;
   color: white;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 .btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+  background: #3b4db8;
 }
 
 /* Responsive */
@@ -1455,57 +1474,12 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
   
-  .model-options {
-    grid-template-columns: 1fr;
-  }
-  
-  .form-actions,
-  .modal-footer {
-    flex-direction: column;
-  }
-  
-  .prize-item {
-    flex-direction: column;
-    text-align: center;
-  }
-  
   .main-form {
     padding: 1.5rem;
   }
   
   .modal {
     margin: 0.5rem;
-  }
-  
-  .modal-body {
-    padding: 1.5rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .header {
-    padding: 1.5rem;
-  }
-  
-  .main-form {
-    padding: 1rem;
-  }
-  
-  .phone-input {
-    flex-direction: column;
-  }
-  
-  .country-code {
-    width: 100% !important;
-  }
-  
-  .modal-header,
-  .modal-footer {
-    padding: 1rem 1.5rem;
-  }
-  
-  .modal-body {
-    padding: 1rem 1.5rem;
   }
 }
 </style>
