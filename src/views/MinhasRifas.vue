@@ -1,4 +1,3 @@
-<!-- filepath: src/views/MinhasRifas.vue -->
 <template>
   <AdminLayout>
     <div class="minhas-rifas">
@@ -52,21 +51,10 @@
             🔄 Atualizar
           </button>
         </div>
-
-        <!-- ✅ ADICIONADO: Debug info (remover em produção) -->
-        <div v-if="false" class="debug-info" style="margin-top: 1rem; padding: 1rem; background: #f0f0f0; border-radius: 8px; font-size: 0.8rem;">
-          <strong>Debug:</strong><br>
-          - isLoading: {{ isLoading }}<br>
-          - error: {{ error }}<br>
-          - rifas.length: {{ rifas.length }}<br>
-          - rifasFiltradas.length: {{ rifasFiltradas.length }}<br>
-          - temFiltros: {{ temFiltros }}<br>
-          - Condição empty-state: {{ !isLoading && !error && rifasFiltradas.length === 0 }}
-        </div>
       </div>
 
       <!-- Loading -->
-      <div v-if="isLoading" class="loading">
+      <div v-if="isLoading" class="loading-state">
         <div class="loading-spinner"></div>
         <p>Carregando suas rifas...</p>
       </div>
@@ -81,7 +69,7 @@
         </button>
       </div>
 
-      <!-- ✅ CORRIGIDO: Lista de rifas com condição mais específica -->
+      <!-- Lista de rifas -->
       <div v-else-if="!isLoading && !error && rifasFiltradas.length > 0" class="rifas-grid">
         <div 
           v-for="rifa in rifasFiltradas" 
@@ -89,10 +77,24 @@
           class="rifa-card"
         >
           <div class="rifa-image">
-            <!-- ✅ Placeholder CSS em vez de imagem -->
-            <div class="image-placeholder">
+            <div v-if="!getRifaImageUrl(rifa)" class="image-placeholder">
               <div class="placeholder-icon">🎯</div>
               <div class="placeholder-text">{{ rifa.title }}</div>
+            </div>
+            
+            <div v-else class="rifa-image-container">
+              <img 
+                :src="getRifaImageUrl(rifa)"
+                :alt="rifa.title"
+                class="rifa-image-real"
+                @error="handleImageError"
+                loading="lazy"
+              />
+              
+              <div class="image-placeholder fallback-placeholder" style="display: none;">
+                <div class="placeholder-icon">🎯</div>
+                <div class="placeholder-text">{{ rifa.title }}</div>
+              </div>
             </div>
             
             <div class="rifa-status">
@@ -144,10 +146,12 @@
                 📊 Gerenciar
               </button>
               <button 
-                @click="editarRifa(rifa.id)"
-                class="btn btn-secondary"
+                v-if="rifa.status === 'pending'"
+                @click="ativarRifa(rifa.id)"
+                class="btn btn-success"
+                :disabled="isUpdatingStatus"
               >
-                ✏️ Editar
+                ✅ Ativar
               </button>
               <button 
                 v-if="rifa.status === 'active'"
@@ -165,27 +169,12 @@
               >
                 ▶️ Ativar
               </button>
-              <button 
-                v-if="rifa.status === 'pending'"
-                @click="aprovarRifa(rifa.id)"
-                class="btn btn-success"
-                :disabled="isUpdatingStatus"
-              >
-                ✅ Aprovar
-              </button>
-              <button 
-                @click="confirmarExclusao(rifa)"
-                class="btn btn-danger"
-                :disabled="isUpdatingStatus"
-              >
-                🗑️ Excluir
-              </button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- ✅ CORRIGIDO: Paginação aparece apenas quando há rifas -->
+      <!-- Paginação -->
       <div v-if="!isLoading && !error && rifasFiltradas.length > 0 && pagination.totalPages > 1" class="pagination">
         <button 
           @click="goToPage(1)" 
@@ -223,7 +212,7 @@
         </button>
       </div>
 
-      <!-- ✅ CORRIGIDO: Estado vazio só aparece quando realmente não há rifas -->
+      <!-- Estado vazio -->
       <div v-else-if="!isLoading && !error && rifasFiltradas.length === 0" class="empty-state">
         <div class="empty-icon">🎯</div>
         <h3>{{ temFiltros ? 'Nenhuma rifa encontrada' : 'Nenhuma rifa criada ainda' }}</h3>
@@ -237,7 +226,6 @@
           Nenhuma rifa corresponde aos filtros aplicados.
         </p>
         
-        <!-- Ações contextuais -->
         <div class="empty-actions">
           <router-link v-if="rifas.length === 0" to="/rifas/criar" class="btn btn-primary">
             ➕ Criar Primeira Rifa
@@ -249,26 +237,6 @@
             <router-link to="/rifas/criar" class="btn btn-primary">
               ➕ Nova Rifa
             </router-link>
-          </div>
-        </div>
-      </div>
-
-      <!-- Modal de confirmação -->
-      <div v-if="showConfirmModal" class="modal-overlay" @click="cancelarExclusao">
-        <div class="modal" @click.stop>
-          <div class="modal-header">
-            <h3>Confirmar Exclusão</h3>
-            <button @click="cancelarExclusao" class="modal-close">✕</button>
-          </div>
-          <div class="modal-body">
-            <p>Tem certeza que deseja excluir a rifa <strong>"{{ rifaParaExcluir?.title }}"</strong>?</p>
-            <p class="warning">Esta ação não pode ser desfeita.</p>
-          </div>
-          <div class="modal-footer">
-            <button @click="cancelarExclusao" class="btn btn-outline">Cancelar</button>
-            <button @click="excluirRifa" class="btn btn-danger" :disabled="isUpdatingStatus">
-              {{ isUpdatingStatus ? 'Excluindo...' : 'Excluir' }}
-            </button>
           </div>
         </div>
       </div>
@@ -307,18 +275,12 @@ const pagination = ref({
   hasPrev: false
 })
 
-// Modal de confirmação
-const showConfirmModal = ref(false)
-const rifaParaExcluir = ref(null)
-
 // Debounce para busca
 let searchTimeout = null
 
-// ✅ CORRIGIDO: Computed mais robusto para filtros
 const rifasFiltradas = computed(() => {
   let resultado = [...rifas.value]
 
-  // Filtrar por busca local (após filtro da API)
   if (termoBusca.value?.trim()) {
     const termo = termoBusca.value.toLowerCase().trim()
     resultado = resultado.filter(rifa => {
@@ -369,7 +331,6 @@ const calculateTotalPrize = (rifa) => {
   return (rifa.ticketPrice || 0) * (rifa.totalTickets || 0)
 }
 
-// ✅ NOVA FUNÇÃO: Limpar todos os filtros
 const limparFiltros = () => {
   filtroStatus.value = ''
   termoBusca.value = ''
@@ -378,10 +339,6 @@ const limparFiltros = () => {
 
 const gerenciarRifa = (id) => {
   router.push(`/rifas/${id}/gerenciar`)
-}
-
-const editarRifa = (id) => {
-  router.push(`/rifas/${id}/editar`)
 }
 
 const pausarRifa = async (id) => {
@@ -407,47 +364,6 @@ const ativarRifa = async (id) => {
   } catch (error) {
     console.error('Erro ao ativar rifa:', error)
     showMessage('Erro ao ativar rifa: ' + error.message, 'error')
-  } finally {
-    isUpdatingStatus.value = false
-  }
-}
-
-const aprovarRifa = async (id) => {
-  try {
-    isUpdatingStatus.value = true
-    await rifasAPI.updateStatus(id, 'active')
-    showMessage('Rifa aprovada com sucesso!', 'success')
-    await carregarRifas(pagination.value.currentPage)
-  } catch (error) {
-    console.error('Erro ao aprovar rifa:', error)
-    showMessage('Erro ao aprovar rifa: ' + error.message, 'error')
-  } finally {
-    isUpdatingStatus.value = false
-  }
-}
-
-const confirmarExclusao = (rifa) => {
-  rifaParaExcluir.value = rifa
-  showConfirmModal.value = true
-}
-
-const cancelarExclusao = () => {
-  rifaParaExcluir.value = null
-  showConfirmModal.value = false
-}
-
-const excluirRifa = async () => {
-  if (!rifaParaExcluir.value) return
-  
-  try {
-    isUpdatingStatus.value = true
-    await rifasAPI.delete(rifaParaExcluir.value.id)
-    showMessage('Rifa excluída com sucesso!', 'success')
-    cancelarExclusao()
-    await carregarRifas(pagination.value.currentPage)
-  } catch (error) {
-    console.error('Erro ao excluir rifa:', error)
-    showMessage('Erro ao excluir rifa: ' + error.message, 'error')
   } finally {
     isUpdatingStatus.value = false
   }
@@ -482,9 +398,8 @@ const carregarRifas = async (page = 1) => {
     console.log('🎫 Token presente:', !!authStore.token)
     
     isLoading.value = true
-    error.value = '' // ✅ CRÍTICO: Limpar erro antes da requisição
+    error.value = ''
     
-    // Verificar se o usuário está autenticado
     if (!authStore.isAuthenticated) {
       console.warn('⚠️ Usuário não autenticado')
       error.value = 'Usuário não autenticado'
@@ -505,19 +420,15 @@ const carregarRifas = async (page = 1) => {
     
     console.log('📋 Parâmetros da requisição:', params)
     
-    // ✅ CORREÇÃO: Fazer requisição e processar corretamente
     const response = await rifasAPI.listMyRaffles(params)
     
     console.log('📥 Resposta completa da API:', response.data)
     
-    // ✅ CRITICAL FIX: Verificar mais especificamente a estrutura da resposta
     if (response && response.data) {
-      // Se tem success = true na resposta, processar normalmente
       if (response.data.success === true) {
         console.log('✅ Resposta com success=true')
         rifas.value = response.data.data || []
         
-        // Atualizar paginação
         if (response.data.pagination) {
           pagination.value = {
             currentPage: response.data.pagination.currentPage || pageNumber,
@@ -528,7 +439,6 @@ const carregarRifas = async (page = 1) => {
             hasPrev: response.data.pagination.hasPrev || false
           }
         } else {
-          // Fallback para paginação quando não há dados de paginação
           pagination.value.currentPage = pageNumber
           pagination.value.totalItems = rifas.value.length
           pagination.value.totalPages = Math.ceil(rifas.value.length / pagination.value.limit) || 1
@@ -543,22 +453,16 @@ const carregarRifas = async (page = 1) => {
           totalItens: pagination.value.totalItems
         })
         
-        // ✅ IMPORTANTE: Garantir que error está limpo em caso de sucesso
         error.value = ''
         
-      } 
-      // Se success = false na resposta, tratar como erro
-      else if (response.data.success === false) {
-        console.error('❌ Resposta da API com success=false:', response.data.message)
+      } else if (response.data.success === false) {
+        console.error('❌ Resposta da API com success=false:', response.data)
         error.value = response.data.message || 'Erro ao carregar rifas'
         rifas.value = []
-      }
-      // ✅ NEW: Se não tem campo success, mas tem dados válidos, assumir sucesso
-      else if (Array.isArray(response.data.data) || Array.isArray(response.data)) {
+      } else if (Array.isArray(response.data.data) || Array.isArray(response.data)) {
         console.log('✅ Resposta sem campo success mas com dados válidos')
         rifas.value = response.data.data || response.data || []
         
-        // Configurar paginação básica
         pagination.value.currentPage = pageNumber
         pagination.value.totalItems = rifas.value.length
         pagination.value.totalPages = Math.ceil(rifas.value.length / pagination.value.limit) || 1
@@ -566,9 +470,7 @@ const carregarRifas = async (page = 1) => {
         pagination.value.hasPrev = false
         
         error.value = ''
-      }
-      // Se não conseguiu processar a resposta
-      else {
+      } else {
         console.error('❌ Estrutura de resposta não reconhecida:', response.data)
         error.value = 'Formato de resposta inesperado da API'
         rifas.value = []
@@ -584,7 +486,6 @@ const carregarRifas = async (page = 1) => {
     error.value = err.message || 'Erro ao carregar rifas'
     rifas.value = []
     
-    // Se for erro 401, redirecionar para login
     if (err.response?.status === 401) {
       console.warn('🔐 Token inválido, redirecionando para login')
       router.push('/login')
@@ -597,7 +498,6 @@ const carregarRifas = async (page = 1) => {
 onMounted(async () => {
   console.log('🚀 MinhasRifas: Componente montado')
   
-  // Aguardar autenticação se ainda estiver carregando
   if (authStore.isLoading) {
     console.log('⏳ Aguardando verificação de autenticação...')
     await new Promise(resolve => {
@@ -612,31 +512,38 @@ onMounted(async () => {
   
   await carregarRifas()
 })
+
+const getRifaImageUrl = (rifa) => {
+  if (rifa.image) {
+    return rifa.image
+  }
+  
+  if (rifa.campaignImages && rifa.campaignImages.length > 0) {
+    return rifa.campaignImages[0].url || rifa.campaignImages[0]
+  }
+  
+  return null
+}
+
+const handleImageError = (event) => {
+  console.warn('Erro ao carregar imagem da rifa:', event.target.src)
+  
+  event.target.style.display = 'none'
+  
+  const fallbackPlaceholder = event.target.parentElement.querySelector('.fallback-placeholder')
+  if (fallbackPlaceholder) {
+    fallbackPlaceholder.style.display = 'flex'
+  }
+}
 </script>
 
 <style scoped>
-/* ✅ ADICIONADO: Estilos para as novas ações */
-.empty-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  align-items: center;
-  flex-wrap: wrap;
-  margin-top: 1rem;
-}
-
-.filter-actions {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-/* ...resto dos estilos permanece igual... */
+/* ===== LAYOUT PRINCIPAL ===== */
 .minhas-rifas {
   width: 100%;
 }
 
+/* ===== HEADER ===== */
 .page-header {
   display: flex;
   justify-content: space-between;
@@ -662,6 +569,7 @@ onMounted(async () => {
   font-size: 1rem;
 }
 
+/* ===== BOTÕES ===== */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -707,16 +615,6 @@ onMounted(async () => {
   transform: translateY(-1px);
 }
 
-.btn-secondary {
-  background: #6c757d;
-  color: white;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #5a6268;
-  transform: translateY(-1px);
-}
-
 .btn-warning {
   background: #ffc107;
   color: #212529;
@@ -737,16 +635,7 @@ onMounted(async () => {
   transform: translateY(-1px);
 }
 
-.btn-danger {
-  background: #dc3545;
-  color: white;
-}
-
-.btn-danger:hover:not(:disabled) {
-  background: #c82333;
-  transform: translateY(-1px);
-}
-
+/* ===== FILTROS ===== */
 .filters-section {
   margin-bottom: 2rem;
   background: white;
@@ -785,7 +674,8 @@ onMounted(async () => {
   flex: 1;
 }
 
-.loading {
+/* ===== ESTADOS DE CARREGAMENTO E ERRO ===== */
+.loading-state {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -842,6 +732,7 @@ onMounted(async () => {
   line-height: 1.6;
 }
 
+/* ===== GRID DE RIFAS ===== */
 .rifas-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
@@ -849,6 +740,7 @@ onMounted(async () => {
   margin-bottom: 2rem;
 }
 
+/* ✅ CORRIGIDO: Card com altura consistente */
 .rifa-card {
   background: white;
   border-radius: 16px;
@@ -856,6 +748,10 @@ onMounted(async () => {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   border: 1px solid #f1f3f4;
   transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  min-height: 500px; /* Altura mínima consistente */
 }
 
 .rifa-card:hover {
@@ -864,14 +760,35 @@ onMounted(async () => {
   border-color: #e5e7eb;
 }
 
+/* ===== IMAGEM DA RIFA ===== */
 .rifa-image {
   position: relative;
-  height: 220px;
+  height: 200px; /* Altura fixa para todas as imagens */
+  width: 100%;
   overflow: hidden;
+  flex-shrink: 0; /* Não permite que a imagem encolha */
 }
 
-/* ✅ Placeholder CSS para evitar problemas com imagens */
-.image-placeholder {
+.rifa-image-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.rifa-image-real {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transition: transform 0.3s ease;
+}
+
+.rifa-card:hover .rifa-image-real {
+  transform: scale(1.05);
+}
+
+.image-placeholder,
+.fallback-placeholder {
   width: 100%;
   height: 100%;
   background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
@@ -898,12 +815,15 @@ onMounted(async () => {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  text-align: center;
 }
 
+/* ===== STATUS BADGE ===== */
 .rifa-status {
   position: absolute;
   top: 1rem;
   right: 1rem;
+  z-index: 2;
 }
 
 .status-badge {
@@ -947,8 +867,12 @@ onMounted(async () => {
   color: #4b5563;
 }
 
+/* ===== CONTEÚDO DA RIFA ===== */
 .rifa-content {
   padding: 1.5rem;
+  flex: 1; /* Permite que o conteúdo expanda */
+  display: flex;
+  flex-direction: column;
 }
 
 .rifa-content h3 {
@@ -969,8 +893,10 @@ onMounted(async () => {
   margin-bottom: 1rem;
 }
 
+/* ===== ESTATÍSTICAS ===== */
 .rifa-stats {
   margin-bottom: 1rem;
+  flex: 1; /* Permite que as stats expandam */
 }
 
 .stat {
@@ -997,6 +923,7 @@ onMounted(async () => {
   font-weight: 700;
 }
 
+/* ===== PROGRESSO ===== */
 .progress-bar {
   height: 8px;
   background: #f1f5f9;
@@ -1012,10 +939,12 @@ onMounted(async () => {
   border-radius: 4px;
 }
 
+/* ===== AÇÕES DA RIFA ===== */
 .rifa-actions {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+  margin-top: auto; /* Empurra as ações para o fundo */
 }
 
 .rifa-actions .btn {
@@ -1025,7 +954,7 @@ onMounted(async () => {
   font-size: 0.8rem;
 }
 
-/* Paginação */
+/* ===== PAGINAÇÃO ===== */
 .pagination {
   display: flex;
   justify-content: center;
@@ -1045,6 +974,7 @@ onMounted(async () => {
   font-size: 0.9rem;
 }
 
+/* ===== ESTADO VAZIO ===== */
 .empty-state {
   text-align: center;
   padding: 4rem 2rem;
@@ -1074,85 +1004,22 @@ onMounted(async () => {
   line-height: 1.6;
 }
 
-/* Modal */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal {
-  background: white;
-  border-radius: 16px;
-  max-width: 500px;
-  width: 90%;
-  max-height: 90vh;
-  overflow: hidden;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.modal-header h3 {
-  margin: 0;
-  color: #1a1d29;
-  font-size: 1.25rem;
-  font-weight: 700;
-}
-
-.modal-close {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: #6b7280;
-  padding: 0.25rem;
-  border-radius: 4px;
-  transition: color 0.2s ease;
-}
-
-.modal-close:hover {
-  color: #374151;
-}
-
-.modal-body {
-  padding: 1.5rem;
-}
-
-.modal-body p {
-  margin-bottom: 1rem;
-  color: #374151;
-  line-height: 1.6;
-}
-
-.modal-body .warning {
-  color: #dc3545;
-  font-weight: 500;
-  margin-bottom: 0;
-}
-
-.modal-footer {
+.empty-actions {
   display: flex;
   gap: 1rem;
-  justify-content: flex-end;
-  padding: 1.5rem;
-  border-top: 1px solid #e5e7eb;
-  background: #f9fafb;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
+.filter-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ===== RESPONSIVIDADE ===== */
 @media (max-width: 768px) {
   .page-header {
     flex-direction: column;
@@ -1178,20 +1045,20 @@ onMounted(async () => {
     grid-template-columns: 1fr;
   }
   
+  .rifa-card {
+    min-height: 450px; /* Altura menor em mobile */
+  }
+  
+  .rifa-image {
+    height: 180px; /* Altura menor da imagem em mobile */
+  }
+  
   .rifa-actions {
     flex-direction: column;
   }
   
   .rifa-actions .btn {
     min-width: auto;
-  }
-  
-  .modal {
-    width: 95%;
-  }
-  
-  .modal-footer {
-    flex-direction: column;
   }
   
   .pagination {
@@ -1209,6 +1076,15 @@ onMounted(async () => {
 @media (max-width: 480px) {
   .rifas-grid {
     gap: 1rem;
+    grid-template-columns: 1fr;
+  }
+  
+  .rifa-card {
+    min-height: 400px;
+  }
+  
+  .rifa-image {
+    height: 160px;
   }
   
   .rifa-content {

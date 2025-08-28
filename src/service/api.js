@@ -580,4 +580,43 @@ export const uploadAPI = {
   }
 }
 
+// ✅ CORRIGIDO: Construir URL correta da API para as imagens
+const getRifaImageUrl = (rifa) => {
+  // Verificar se tem imagem principal (ID)
+  if (rifa.image) {
+    // Construir URL da API para acessar a imagem
+    const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+    return `${baseURL}/upload/${rifa.image}`
+  }
+  
+  // Verificar se tem imagens da campanha
+  if (rifa.campaignImages && rifa.campaignImages.length > 0) {
+    const firstImage = rifa.campaignImages[0]
+    const imageId = firstImage.url || firstImage.id || firstImage
+    
+    if (imageId) {
+      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+      return `${baseURL}/upload/${imageId}`
+    }
+  }
+  
+  // Se não tem imagem, retornar null (vai usar placeholder)
+  return null
+}
+
+// ✅ CORRIGIDO: Usar elemento img ao invés de background-image para melhor compatibilidade
+const handleImageError = (event) => {
+  console.warn('Erro ao carregar imagem da rifa:', event.target.src)
+  
+  // Esconder a imagem com erro
+  event.target.style.display = 'none'
+  
+  // Mostrar placeholder
+  const imageContainer = event.target.parentElement
+  const placeholder = imageContainer.querySelector('.fallback-placeholder')
+  if (placeholder) {
+    placeholder.style.display = 'flex'
+  }
+}
+
 export default api
