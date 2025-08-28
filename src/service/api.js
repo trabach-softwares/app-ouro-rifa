@@ -384,17 +384,40 @@ export const reportsAPI = {
 
   getSales: async (params = {}) => {
     try {
-      const { startDate, endDate, raffleId } = params
       const queryParams = new URLSearchParams()
       
-      if (startDate) queryParams.append('startDate', startDate)
-      if (endDate) queryParams.append('endDate', endDate)
-      if (raffleId) queryParams.append('raffleId', raffleId)
+      if (params.page) queryParams.append('page', params.page)
+      if (params.limit) queryParams.append('limit', params.limit)
+      if (params.status) queryParams.append('status', params.status)
+      if (params.raffleId) queryParams.append('raffleId', params.raffleId)
+      if (params.sort) queryParams.append('sort', params.sort)
+      if (params.order) queryParams.append('order', params.order)
+      if (params.startDate) queryParams.append('startDate', params.startDate)
+      if (params.endDate) queryParams.append('endDate', params.endDate)
       
       const url = `/reports/sales${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
-      return await api.get(url)
+      
+      console.log('📊 REPORTS: Carregando vendas...', url)
+      const response = await api.get(url)
+      console.log('📥 REPORTS: Vendas carregadas:', response.data)
+      return response
     } catch (error) {
+      console.error('💥 REPORTS: Erro ao carregar vendas:', error)
       throw new Error(error.response?.data?.message || 'Erro ao carregar relatório de vendas')
+    }
+  },
+
+  // ✅ NOVO: Atualizar status de venda
+  updateSaleStatus: async (saleId, status) => {
+    try {
+      console.log('🔄 REPORTS: Atualizando status da venda...', { saleId, status })
+      
+      const response = await api.patch(`/reports/sales/${saleId}/status`, { status })
+      console.log('✅ REPORTS: Status da venda atualizado:', response.data)
+      return response
+    } catch (error) {
+      console.error('💥 REPORTS: Erro ao atualizar status da venda:', error)
+      throw new Error(error.response?.data?.message || 'Erro ao atualizar status da venda')
     }
   },
 
@@ -581,11 +604,11 @@ export const uploadAPI = {
 }
 
 // ✅ CORRIGIDO: Construir URL correta da API para as imagens
-const getRifaImageUrl = (rifa) => {
+export const getRifaImageUrl = (rifa) => {
   // Verificar se tem imagem principal (ID)
   if (rifa.image) {
     // Construir URL da API para acessar a imagem
-    const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+    const baseURL = getApiBaseUrl() // Usar a mesma função que já temos
     return `${baseURL}/upload/${rifa.image}`
   }
   
@@ -595,7 +618,7 @@ const getRifaImageUrl = (rifa) => {
     const imageId = firstImage.url || firstImage.id || firstImage
     
     if (imageId) {
-      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+      const baseURL = getApiBaseUrl()
       return `${baseURL}/upload/${imageId}`
     }
   }
@@ -604,8 +627,8 @@ const getRifaImageUrl = (rifa) => {
   return null
 }
 
-// ✅ CORRIGIDO: Usar elemento img ao invés de background-image para melhor compatibilidade
-const handleImageError = (event) => {
+// ✅ EXPORTAR função para tratar erro de imagem
+export const handleImageError = (event) => {
   console.warn('Erro ao carregar imagem da rifa:', event.target.src)
   
   // Esconder a imagem com erro
@@ -618,5 +641,3 @@ const handleImageError = (event) => {
     placeholder.style.display = 'flex'
   }
 }
-
-export default api

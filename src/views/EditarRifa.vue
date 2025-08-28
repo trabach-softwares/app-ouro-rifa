@@ -245,7 +245,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { rifasAPI } from '@/service/api'
+import { rifasAPI, getRifaImageUrl, handleImageError } from '@/service/api'
 import { useMessage } from '@/composables/message'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 
@@ -289,90 +289,179 @@ const formatCurrency = (value) => {
 const getStatusText = (status) => {
   const statusMap = {
     rascunho: 'Rascunho',
+    draft: 'Rascunho',
     ativo: 'Ativa',
+    active: 'Ativa',
     pausado: 'Pausada',
+    paused: 'Pausada',
     finalizado: 'Finalizada',
-    cancelado: 'Cancelada'
+    finished: 'Finalizada',
+    cancelado: 'Cancelada',
+    cancelled: 'Cancelada',
+    pending: 'Pendente'
   }
   return statusMap[status] || status
 }
 
-const handleImageUpload = (event) => {
-  const file = event.target.files[0]
-  if (file) {
-    form.value.imagem = file
-    
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      form.value.imagemPreview = e.target.result
-    }
-    reader.readAsDataURL(file)
-  }
-}
-
-const removeImage = () => {
-  form.value.imagem = null
-  form.value.imagemPreview = null
-}
-
+// ✅ CORRIGIDO: Carregar dados reais da API
 const carregarRifa = async () => {
   try {
     isLoading.value = true
     const rifaId = route.params.id
     
-    // Simular delay de API
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    console.log('🎯 Carregando dados da rifa:', rifaId)
     
-    // Mock data
-    const rifaData = {
-      id: rifaId,
-      titulo: 'iPhone 15 Pro Max',
-      descricao: 'Smartphone Apple iPhone 15 Pro Max 256GB Titânio Natural',
-      imagemPreview: 'https://via.placeholder.com/400x300?text=iPhone+15',
-      valorPremio: 8000,
-      valorNumero: 50,
-      totalNumeros: 200,
-      dataFim: '2024-02-15T20:00',
-      status: 'ativo',
-      numerosVendidos: 85,
-      percentualVendido: 42.5,
-      faturamento: 4250.00
+    // Fazer requisição real para a API
+    const response = await rifasAPI.get(rifaId)
+    
+    console.log('📥 Resposta da API:', response.data)
+    
+    let rifaData = null
+    
+    // Processar diferentes formatos de resposta
+    if (response.data?.success) {
+      rifaData = response.data.data || response.data.raffle
+    } else if (response.data?.data) {
+      rifaData = response.data.data
+    } else {
+      rifaData = response.data
     }
     
-    form.value = { ...form.value, ...rifaData }
-    temVendas.value = rifaData.numerosVendidos > 0
+    if (!rifaData) {
+      throw new Error('Dados da rifa não encontrados')
+    }
+    
+    console.log('✅ Dados da rifa processados:', rifaData)
+    
+    // ✅ USAR a função getRifaImageUrl para obter a URL da imagem
+    const imageUrl = getRifaImageUrl(rifaData)
+    
+    // Mapear dados da API para o formulário
+    form.value = {
+      id: rifaData.id,
+      titulo: rifaData.title || rifaData.titulo || '',
+      descricao: rifaData.description || rifaData.descricao || '',
+      imagem: null,
+      imagemPreview: imageUrl, // ✅ Usar a URL gerada pela função
+      valorPremio: rifaData.totalPrize || rifaData.valorPremio || calculateTotalPrize(rifaData) || 0,
+      valorNumero: rifaData.ticketPrice || rifaData.valorNumero || 0,
+      totalNumeros: rifaData.totalTickets || rifaData.totalNumeros || 0,
+      dataFim: formatDateForInput(rifaData.endDate || rifaData.dataFim) || '',
+      status: rifaData.status || 'rascunho',
+      numerosVendidos: rifaData.soldTickets || rifaData.numerosVendidos || 0,
+      percentualVendido: rifaData.progress || rifaData.percentualVendido || 0,
+      faturamento: rifaData.revenue || rifaData.faturamento || 0
+    }
+    
+    // Verificar se já tem vendas
+    temVendas.value = (rifaData.soldTickets || rifaData.numerosVendidos || 0) > 0
+    
+    console.log('✅ Formulário preenchido:', form.value)
     
   } catch (error) {
-    showMessage('Erro ao carregar rifa', 'error')
+    console.error('💥 Erro ao carregar rifa:', error)
+    
+    if (error.response?.status === 404) {
+      showMessage('Rifa não encontrada', 'error')
+    } else if (error.response?.status === 403) {
+      showMessage('Você não tem permissão para editar esta rifa', 'error')
+    } else {
+      showMessage('Erro ao carregar dados da rifa: ' + (error.message || 'Erro desconhecido'), 'error')
+    }
+    
     router.push('/rifas')
   } finally {
     isLoading.value = false
   }
 }
 
+// ✅ Função auxiliar para calcular prêmio total
+const calculateTotalPrize = (rifa) => {
+  const ticketPrice = rifa.ticketPrice || rifa.valorNumero || 0
+  const totalTickets = rifa.totalTickets || rifa.totalNumeros || 0
+  return ticketPrice * totalTickets
+}
+
+// ✅ Função auxiliar para formatar data para input datetime-local
+const formatDateForInput = (dateString) => {
+  if (!dateString) return ''
+  
+  try {
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return ''
+    
+    // Formato: YYYY-MM-DDTHH:MM
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    
+    return `${year}-${month}-${day}T${hours}:${minutes}`
+  } catch (error) {
+    console.warn('Erro ao formatar data:', error)
+    return ''
+  }
+}
+
+// ✅ CORRIGIDO: Salvar com dados reais
 const salvarRifa = async () => {
   try {
     isSaving.value = true
     
-    await rifasAPI.atualizar(form.value.id, form.value)
+    // Preparar dados para envio
+    const dadosParaEnvio = {
+      title: form.value.titulo,
+      description: form.value.descricao,
+      ticketPrice: parseFloat(form.value.valorNumero) || 0,
+      totalTickets: parseInt(form.value.totalNumeros) || 0,
+      endDate: form.value.dataFim ? new Date(form.value.dataFim).toISOString() : null
+    }
+    
+    // Se há imagem nova, incluir no FormData
+    if (form.value.imagem) {
+      const formData = new FormData()
+      formData.append('image', form.value.imagem)
+      
+      // Adicionar outros campos
+      Object.keys(dadosParaEnvio).forEach(key => {
+        if (dadosParaEnvio[key] !== null && dadosParaEnvio[key] !== undefined) {
+          formData.append(key, dadosParaEnvio[key])
+        }
+      })
+      
+      await rifasAPI.update(form.value.id, formData)
+    } else {
+      // Sem imagem, usar JSON
+      await rifasAPI.update(form.value.id, dadosParaEnvio)
+    }
+    
     showMessage('Rifa atualizada com sucesso!', 'success')
     
+    // Recarregar dados
+    await carregarRifa()
+    
   } catch (error) {
-    showMessage('Erro ao salvar rifa', 'error')
+    console.error('💥 Erro ao salvar rifa:', error)
+    
+    const errorMessage = error.response?.data?.message || error.message || 'Erro ao salvar rifa'
+    showMessage(errorMessage, 'error')
   } finally {
     isSaving.value = false
   }
 }
 
+// ✅ CORRIGIDO: Usar métodos da API
 const publicarRifa = async () => {
   const confirmacao = confirm('Tem certeza que deseja publicar esta rifa? Ela ficará disponível para vendas.')
   if (confirmacao) {
     try {
-      await rifasAPI.alterarStatus(form.value.id, 'ativo')
-      form.value.status = 'ativo'
+      await rifasAPI.updateStatus(form.value.id, 'active')
+      form.value.status = 'active'
       showMessage('Rifa publicada com sucesso!', 'success')
     } catch (error) {
-      showMessage('Erro ao publicar rifa', 'error')
+      console.error('Erro ao publicar rifa:', error)
+      showMessage('Erro ao publicar rifa: ' + (error.message || 'Erro desconhecido'), 'error')
     }
   }
 }
@@ -381,22 +470,24 @@ const pausarRifa = async () => {
   const confirmacao = confirm('Tem certeza que deseja pausar esta rifa? As vendas serão interrompidas.')
   if (confirmacao) {
     try {
-      await rifasAPI.alterarStatus(form.value.id, 'pausado')
-      form.value.status = 'pausado'
+      await rifasAPI.updateStatus(form.value.id, 'paused')
+      form.value.status = 'paused'
       showMessage('Rifa pausada com sucesso!', 'success')
     } catch (error) {
-      showMessage('Erro ao pausar rifa', 'error')
+      console.error('Erro ao pausar rifa:', error)
+      showMessage('Erro ao pausar rifa: ' + (error.message || 'Erro desconhecido'), 'error')
     }
   }
 }
 
 const ativarRifa = async () => {
   try {
-    await rifasAPI.alterarStatus(form.value.id, 'ativo')
-    form.value.status = 'ativo'
+    await rifasAPI.updateStatus(form.value.id, 'active')
+    form.value.status = 'active'
     showMessage('Rifa ativada com sucesso!', 'success')
   } catch (error) {
-    showMessage('Erro ao ativar rifa', 'error')
+    console.error('Erro ao ativar rifa:', error)
+    showMessage('Erro ao ativar rifa: ' + (error.message || 'Erro desconhecido'), 'error')
   }
 }
 
@@ -404,17 +495,23 @@ const cancelarRifa = async () => {
   const confirmacao = confirm('ATENÇÃO: Tem certeza que deseja CANCELAR esta rifa? Esta ação não pode ser desfeita!')
   if (confirmacao) {
     try {
-      await rifasAPI.alterarStatus(form.value.id, 'cancelado')
-      form.value.status = 'cancelado'
+      await rifasAPI.updateStatus(form.value.id, 'cancelled')
+      form.value.status = 'cancelled'
       showMessage('Rifa cancelada', 'warning')
     } catch (error) {
-      showMessage('Erro ao cancelar rifa', 'error')
+      console.error('Erro ao cancelar rifa:', error)
+      showMessage('Erro ao cancelar rifa: ' + (error.message || 'Erro desconhecido'), 'error')
     }
   }
 }
 
 onMounted(() => {
   carregarRifa()
+})
+
+// ✅ EXPOR a função handleImageError para o template
+defineExpose({
+  handleImageError
 })
 </script>
 
