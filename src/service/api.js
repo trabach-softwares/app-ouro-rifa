@@ -646,3 +646,126 @@ export const handleImageError = (event) => {
     placeholder.style.display = 'flex'
   }
 }
+
+// ✅ ADICIONAR: Exportar a instância do axios
+export { api }
+
+// ✅ NOVO: API específica para tickets/vendas
+export const ticketsAPI = {
+  // Lista de vendas/tickets
+  getSalesList: async (params = {}) => {
+    try {
+      const queryParams = new URLSearchParams()
+      
+      if (params.status) queryParams.append('status', params.status)
+      if (params.raffleId) queryParams.append('raffleId', params.raffleId)
+      if (params.startDate) queryParams.append('startDate', params.startDate)
+      if (params.endDate) queryParams.append('endDate', params.endDate)
+      if (params.page) queryParams.append('page', params.page)
+      if (params.limit) queryParams.append('limit', params.limit)
+      if (params.sortBy) queryParams.append('sortBy', params.sortBy)
+      if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder)
+      
+      const url = `/api/tickets/sales/list${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+      
+      console.log('🎫 TICKETS: Carregando vendas...', url)
+      const response = await api.get(url)
+      console.log('📥 TICKETS: Vendas carregadas:', response.data)
+      return response
+    } catch (error) {
+      console.error('💥 TICKETS: Erro ao carregar vendas:', error)
+      throw new Error(error.response?.data?.message || 'Erro ao carregar vendas')
+    }
+  },
+
+  // Estatísticas de vendas
+  getSalesStats: async (params = {}) => {
+    try {
+      const queryParams = new URLSearchParams()
+      
+      if (params.raffleId) queryParams.append('raffleId', params.raffleId)
+      if (params.startDate) queryParams.append('startDate', params.startDate)
+      if (params.endDate) queryParams.append('endDate', params.endDate)
+      
+      const url = `/api/tickets/sales/stats${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+      
+      console.log('📊 TICKETS: Carregando estatísticas...', url)
+      const response = await api.get(url)
+      console.log('📥 TICKETS: Estatísticas carregadas:', response.data)
+      return response
+    } catch (error) {
+      console.error('💥 TICKETS: Erro ao carregar estatísticas:', error)
+      throw new Error(error.response?.data?.message || 'Erro ao carregar estatísticas')
+    }
+  },
+
+  // Detalhes de um ticket específico
+  getTicketDetails: async (ticketId) => {
+    try {
+      console.log('🎫 TICKETS: Carregando detalhes do ticket...', ticketId)
+      const response = await api.get(`/api/tickets/${ticketId}`)
+      console.log('📥 TICKETS: Detalhes carregados:', response.data)
+      return response
+    } catch (error) {
+      console.error('💥 TICKETS: Erro ao carregar detalhes:', error)
+      throw new Error(error.response?.data?.message || 'Erro ao carregar detalhes do ticket')
+    }
+  },
+
+  // Atualizar status de pagamento
+  updatePaymentStatus: async (ticketId, paymentData) => {
+    try {
+      console.log('🔄 TICKETS: Atualizando status de pagamento...', { ticketId, paymentData })
+      
+      const response = await api.put(`/api/tickets/${ticketId}/payment-status`, paymentData)
+      console.log('✅ TICKETS: Status atualizado:', response.data)
+      return response
+    } catch (error) {
+      console.error('💥 TICKETS: Erro ao atualizar status:', error)
+      throw new Error(error.response?.data?.message || 'Erro ao atualizar status do pagamento')
+    }
+  },
+
+  // Tickets de uma rifa específica
+  getRaffleTickets: async (raffleId, params = {}) => {
+    try {
+      const queryParams = new URLSearchParams()
+      
+      if (params.page) queryParams.append('page', params.page)
+      if (params.limit) queryParams.append('limit', params.limit)
+      
+      const url = `/api/tickets/raffle/${raffleId}/tickets${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+      
+      console.log('🎯 TICKETS: Carregando tickets da rifa...', url)
+      const response = await api.get(url)
+      console.log('📥 TICKETS: Tickets da rifa carregados:', response.data)
+      return response
+    } catch (error) {
+      console.error('💥 TICKETS: Erro ao carregar tickets da rifa:', error)
+      throw new Error(error.response?.data?.message || 'Erro ao carregar tickets da rifa')
+    }
+  },
+
+  // Relatório de vendas completo (Alternative endpoint)
+  getSalesReport: async (params = {}) => {
+    try {
+      const queryParams = new URLSearchParams()
+      
+      if (params.status) queryParams.append('status', params.status)
+      if (params.page) queryParams.append('page', params.page)
+      if (params.limit) queryParams.append('limit', params.limit)
+      if (params.sortBy) queryParams.append('sortBy', params.sortBy)
+      if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder)
+      
+      const url = `/api/reports/sales${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+      
+      console.log('📊 TICKETS: Carregando relatório de vendas...', url)
+      const response = await api.get(url)
+      console.log('📥 TICKETS: Relatório carregado:', response.data)
+      return response
+    } catch (error) {
+      console.error('💥 TICKETS: Erro ao carregar relatório:', error)
+      throw new Error(error.response?.data?.message || 'Erro ao carregar relatório de vendas')
+    }
+  }
+}

@@ -324,7 +324,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { reportsAPI, rifasAPI } from '@/service/api'
+import { rifasAPI, ticketsAPI } from '@/service/api' // ✅ Import correto das APIs
 import { useMessage } from '@/composables/message'
 import { useAuthStore } from '@/stores/auth'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
@@ -364,7 +364,7 @@ const vendaSelecionada = ref(null)
 // Debounce para busca
 let searchTimeout = null
 
-// Estatísticas computadas
+// Estatísticas computadas usando nova estrutura
 const estatisticas = computed(() => {
   if (!Array.isArray(vendas.value)) {
     return {
@@ -377,10 +377,10 @@ const estatisticas = computed(() => {
 
   const total = vendas.value.length
   const faturamento = vendas.value.reduce((sum, venda) => {
-    return sum + (venda.amount || venda.totalAmount || 0)
+    return sum + (venda.totalAmount || 0)
   }, 0)
-  const pendentes = vendas.value.filter(v => v.status === 'pending').length
-  const confirmadas = vendas.value.filter(v => ['confirmed', 'paid'].includes(v.status)).length
+  const pendentes = vendas.value.filter(v => v.paymentStatus === 'pending').length
+  const confirmadas = vendas.value.filter(v => v.paymentStatus === 'paid').length
 
   return {
     totalVendas: total,
@@ -390,7 +390,7 @@ const estatisticas = computed(() => {
   }
 })
 
-// Vendas filtradas
+// Vendas filtradas com nova estrutura
 const vendasFiltradas = computed(() => {
   if (!Array.isArray(vendas.value)) {
     return []
@@ -399,22 +399,22 @@ const vendasFiltradas = computed(() => {
   let resultado = [...vendas.value]
 
   if (filtroStatus.value) {
-    resultado = resultado.filter(venda => venda.status === filtroStatus.value)
+    resultado = resultado.filter(venda => venda.paymentStatus === filtroStatus.value)
   }
 
   if (filtroRifa.value) {
-    resultado = resultado.filter(venda => {
-      return (venda.raffleId || venda.raffle?.id) === filtroRifa.value
-    })
+    resultado = resultado.filter(venda => venda.raffle?.id === filtroRifa.value)
   }
 
   if (termoBusca.value?.trim()) {
     const termo = termoBusca.value.toLowerCase().trim()
     resultado = resultado.filter(venda => {
-      const nome = (venda.buyerName || venda.buyer?.name || '').toLowerCase()
-      const telefone = (venda.buyerPhone || venda.buyer?.phone || '').toLowerCase()
-      const rifa = (venda.raffleName || venda.raffle?.title || '').toLowerCase()
-      return nome.includes(termo) || telefone.includes(termo) || rifa.includes(termo)
+      const nome = (venda.customer?.name || '').toLowerCase()
+      const telefone = (venda.customer?.phone || '').toLowerCase()
+      const email = (venda.customer?.email || '').toLowerCase()
+      const rifa = (venda.raffle?.title || '').toLowerCase()
+      const orderNumber = (venda.orderNumber || '').toLowerCase()
+      return nome.includes(termo) || telefone.includes(termo) || email.includes(termo) || rifa.includes(termo) || orderNumber.includes(termo)
     })
   }
 
@@ -458,10 +458,10 @@ const formatDateTime = (dateString) => {
 }
 
 const formatTicketNumber = (numero) => {
-  if (typeof numero === 'object' && numero.number) {
-    return numero.number.toString().padStart(3, '0')
+  if (typeof numero === 'string') {
+    return numero.padStart(4, '0')
   }
-  return numero.toString().padStart(3, '0')
+  return numero.toString().padStart(4, '0')
 }
 
 const getInitials = (name) => {
@@ -472,12 +472,21 @@ const getInitials = (name) => {
 const getStatusText = (status) => {
   const statusMap = {
     pending: 'Pendente',
-    confirmed: 'Confirmada',
-    cancelled: 'Cancelada',
-    paid: 'Paga',
-    expired: 'Expirada'
+    paid: 'Pago',
+    failed: 'Falhou',
+    cancelled: 'Cancelado'
   }
   return statusMap[status] || status
+}
+
+const getPaymentMethodText = (method) => {
+  const methodMap = {
+    pix: 'PIX',
+    credit_card: 'Cartão de Crédito',
+    debit_card: 'Cartão de Débito',
+    bank_transfer: 'Transferência Bancária'
+  }
+  return methodMap[method] || method
 }
 
 // Métodos de ação
@@ -508,9 +517,25 @@ const goToPage = (pageNumber) => {
   carregarVendas(page)
 }
 
-const verDetalhesVenda = (venda) => {
-  vendaSelecionada.value = venda
-  showDetalhesModal.value = true
+const verDetalhesVenda = async (venda) => {
+  try {
+    // Carregar detalhes completos do ticket
+    const response = await ticketsAPI.getTicketDetails(venda.id)
+    
+    if (response.data.success) {
+      vendaSelecionada.value = response.data.data
+      showDetalhesModal.value = true
+    } else {
+      // Usar dados básicos se não conseguir carregar detalhes
+      vendaSelecionada.value = venda
+      showDetalhesModal.value = true
+    }
+  } catch (error) {
+    console.error('Erro ao carregar detalhes:', error)
+    // Mostrar com dados básicos mesmo em caso de erro
+    vendaSelecionada.value = venda
+    showDetalhesModal.value = true
+  }
 }
 
 const fecharDetalhes = () => {
@@ -522,25 +547,31 @@ const confirmarVenda = async (vendaId) => {
   try {
     isUpdatingStatus.value = true
     
-    const response = await reportsAPI.updateSaleStatus(vendaId, 'confirmed')
+    const paymentData = {
+      paymentStatus: 'paid',
+      transactionId: `MANUAL_${Date.now()}`
+    }
     
-    if (response.data.success || response.status === 200) {
+    const response = await ticketsAPI.updatePaymentStatus(vendaId, paymentData)
+    
+    if (response.data.success) {
       const venda = vendas.value.find(v => v.id === vendaId)
       if (venda) {
-        venda.status = 'confirmed'
+        venda.paymentStatus = 'paid'
+        venda.paidAt = new Date().toISOString()
       }
       
-      showMessage('Venda confirmada com sucesso!', 'success')
+      showMessage('Pagamento confirmado com sucesso!', 'success')
       
       if (showDetalhesModal.value && vendaSelecionada.value?.id === vendaId) {
         fecharDetalhes()
       }
     } else {
-      throw new Error(response.data.message || 'Erro ao confirmar venda')
+      throw new Error(response.data.message || 'Erro ao confirmar pagamento')
     }
   } catch (error) {
     console.error('Erro ao confirmar venda:', error)
-    showMessage('Erro ao confirmar venda: ' + (error.message || 'Erro desconhecido'), 'error')
+    showMessage('Erro ao confirmar pagamento: ' + (error.message || 'Erro desconhecido'), 'error')
   } finally {
     isUpdatingStatus.value = false
   }
@@ -553,12 +584,16 @@ const cancelarVenda = async (vendaId) => {
   try {
     isUpdatingStatus.value = true
     
-    const response = await reportsAPI.updateSaleStatus(vendaId, 'cancelled')
+    const paymentData = {
+      paymentStatus: 'cancelled'
+    }
     
-    if (response.data.success || response.status === 200) {
+    const response = await ticketsAPI.updatePaymentStatus(vendaId, paymentData)
+    
+    if (response.data.success) {
       const venda = vendas.value.find(v => v.id === vendaId)
       if (venda) {
-        venda.status = 'cancelled'
+        venda.paymentStatus = 'cancelled'
       }
       
       showMessage('Venda cancelada com sucesso!', 'warning')
@@ -579,6 +614,7 @@ const cancelarVenda = async (vendaId) => {
 
 const enviarComprovante = async (venda) => {
   try {
+    // Implementar envio de comprovante
     showMessage('Comprovante enviado com sucesso!', 'success')
   } catch (error) {
     showMessage('Erro ao enviar comprovante', 'error')
@@ -590,15 +626,19 @@ const exportarRelatorio = async () => {
     showMessage('Gerando relatório...', 'info')
     
     const params = {
-      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-      endDate: new Date().toISOString()
+      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      endDate: new Date().toISOString().split('T')[0]
     }
     
     if (filtroRifa.value) {
       params.raffleId = filtroRifa.value
     }
     
-    const response = await reportsAPI.getSales(params)
+    if (filtroStatus.value) {
+      params.status = filtroStatus.value
+    }
+    
+    const response = await ticketsAPI.getSalesList(params)
     
     const blob = new Blob([JSON.stringify(response.data, null, 2)], { 
       type: 'application/json' 
@@ -619,7 +659,7 @@ const exportarRelatorio = async () => {
   }
 }
 
-// Método principal para carregar vendas
+// ✅ MÉTODO PRINCIPAL: Carregar vendas com nova API
 const carregarVendas = async (page = 1) => {
   try {
     const pageNumber = typeof page === 'number' ? page : parseInt(page) || 1
@@ -640,13 +680,17 @@ const carregarVendas = async (page = 1) => {
       return
     }
     
+    // ✅ NOVOS parâmetros da API de tickets
     const params = {
       page: pageNumber,
       limit: pagination.value.limit,
-      sort: ordenacao.value,
-      order: ordemDirecao.value
+      sortBy: ordenacao.value === 'createdAt' ? 'createdAt' : 
+             ordenacao.value === 'amount' ? 'totalAmount' : 
+             ordenacao.value === 'buyerName' ? 'createdAt' : 'createdAt',
+      sortOrder: ordemDirecao.value
     }
     
+    // ✅ MAPEAR filtros para novos nomes
     if (filtroStatus.value) {
       params.status = filtroStatus.value
     }
@@ -657,14 +701,14 @@ const carregarVendas = async (page = 1) => {
     
     console.log('📋 Parâmetros da requisição:', params)
     
-    const response = await reportsAPI.getSales(params)
+    const response = await ticketsAPI.getSalesList(params)
     
-    console.log('📥 Resposta da API de vendas:', response.data)
+    console.log('📥 Resposta da API de tickets:', response.data)
     
     if (response && response.data) {
       if (response.data.success === true) {
         console.log('✅ Resposta com success=true')
-        const vendasData = response.data.data || response.data.sales || []
+        const vendasData = response.data.data || []
         
         vendas.value = Array.isArray(vendasData) ? vendasData : []
         
@@ -682,17 +726,6 @@ const carregarVendas = async (page = 1) => {
           pagination.value.totalItems = vendas.value.length
           pagination.value.totalPages = Math.ceil(vendas.value.length / pagination.value.limit) || 1
         }
-        
-        error.value = ''
-      } else if (Array.isArray(response.data.data) || Array.isArray(response.data)) {
-        console.log('✅ Resposta sem campo success mas com dados válidos')
-        const vendasData = response.data.data || response.data || []
-        
-        vendas.value = Array.isArray(vendasData) ? vendasData : []
-        
-        pagination.value.currentPage = pageNumber
-        pagination.value.totalItems = vendas.value.length
-        pagination.value.totalPages = Math.ceil(vendas.value.length / pagination.value.limit) || 1
         
         error.value = ''
       } else if (response.data.success === false) {

@@ -8,6 +8,7 @@
         <p>Carregando dados da rifa...</p>
       </div>
 
+      <!-- Conteúdo normal da tela -->
       <div v-else>
         <!-- ✅ NOVO: Header da Rifa - Nome em destaque -->
         <div class="rifa-header">
@@ -423,6 +424,118 @@
           </div>
         </div>
       </div>
+
+      <!-- ✅ CORRIGIDO: Modal de Rifa Indisponível -->
+      <div v-if="showUnavailableModal" class="modal-overlay" @click="handleModalOverlayClick">
+        <div class="modal-container unavailable-modal" @click.stop>
+          <div class="modal-header">
+            <div class="modal-icon unavailable">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12,2C13.1,2 14,2.9 14,4C14,5.1 13.1,6 12,6C10.9,6 10,5.1 10,4C10,2.9 10.9,2 12,2M21,9V7L15,1H5C3.89,1 3,1.89 3,3V21A2,2 0 0,0 5,23H19A2,2 0 0,0 21,21V9M19,9H14V4H19V9Z"/>
+              </svg>
+            </div>
+            <div class="modal-title">
+              <h3>Rifa indisponível para gerenciamento</h3>
+              <p>Esta rifa não pode ser gerenciada no momento</p>
+            </div>
+            <!-- ✅ CORRIGIDO: Botão de fechar com redirecionamento -->
+            <button @click="closeUnavailableModal" class="modal-close">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <div class="unavailable-details">
+              <!-- Status da rifa -->
+              <div class="status-info-card">
+                <div class="status-icon">🚫</div>
+                <div class="status-content">
+                  <h4>Status atual da rifa</h4>
+                  <span :class="['status-badge-modal', unavailableReason?.status || 'cancelled']">
+                    {{ getStatusText(unavailableReason?.status || 'cancelled') }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Motivo da indisponibilidade -->
+              <div class="reason-card">
+                <div class="reason-icon">💡</div>
+                <div class="reason-content">
+                  <h4>Por que não posso gerenciar?</h4>
+                  <div class="reason-list">
+                    <div class="reason-item">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"/>
+                      </svg>
+                      <span v-if="unavailableReason?.status === 'cancelled'">
+                        Rifas canceladas não podem ser gerenciadas
+                      </span>
+                      <span v-else-if="unavailableReason?.status === 'deleted'">
+                        Esta rifa foi removida do sistema
+                      </span>
+                      <span v-else>
+                        Rifa não está disponível para visualização
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Ações disponíveis -->
+              <div class="available-actions-card">
+                <div class="actions-icon">⚡</div>
+                <div class="actions-content">
+                  <h4>O que você pode fazer</h4>
+                  <div class="actions-list">
+                    <div class="action-item">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M10,4H14V6H10V4M4,6V8H20V6H4M5,10V21H9V14H15V21H19V10H5Z"/>
+                      </svg>
+                      <span>Voltar à lista de rifas</span>
+                    </div>
+                    <div v-if="unavailableReason?.status === 'cancelled'" class="action-item">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
+                      </svg>
+                      <span>Criar uma nova rifa</span>
+                    </div>
+                    <div class="action-item">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20,18C20.5,18 21,17.5 21,17C21,16.5 20.5,16 20,16C19.5,16 19,16.5 19,17C19,17.5 19.5,18 20,18M20,10V15L18.5,13.5C17.3,14.7 15.7,15.3 14,15.3C10.1,15.3 7,12.2 7,8.3C7,4.4 10.1,1.3 14,1.3C17.9,1.3 21,4.4 21,8.3H19C19,5.5 16.8,3.3 14,3.3C11.2,3.3 9,5.5 9,8.3C9,11.1 11.2,13.3 14,13.3C15.4,13.3 16.6,12.7 17.5,11.8L16,10.3L20,10.3V10Z"/>
+                      </svg>
+                      <span>Atualizar lista e tentar novamente</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <!-- ✅ CORRIGIDO: Botão Voltar à Lista agora usa closeUnavailableModal -->
+            <button @click="closeUnavailableModal" class="btn btn-outline">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z"/>
+              </svg>
+              Voltar à Lista
+            </button>
+            <button v-if="unavailableReason?.status === 'cancelled'" @click="criarNovaRifa" class="btn btn-success">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
+              </svg>
+              Criar Nova Rifa
+            </button>
+            <button v-else @click="atualizarEVoltar" class="btn btn-success">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"/>
+              </svg>
+              Atualizar e Voltar
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </AdminLayout>
 </template>
@@ -438,11 +551,15 @@ const route = useRoute()
 const router = useRouter()
 const { showMessage } = useMessage()
 
-// ✅ ADICIONAR variável de controle
+// ✅ Estados existentes
 const isLoading = ref(true)
-const isUpdatingStatus = ref(false) // ✅ NOVO
+const isUpdatingStatus = ref(false)
 
-// ✅ CORRIGIDO: Inicializar refs com objetos vazios reativos
+// ✅ NOVO: Estados para modal de indisponibilidade
+const showUnavailableModal = ref(false)
+const unavailableReason = ref(null)
+
+// ✅ Dados da rifa (existente)
 const rifa = ref({
   id: '',
   title: '',
@@ -469,7 +586,7 @@ const vendas = ref([])
 const filtroStatus = ref('')
 const termoBusca = ref('')
 
-// ✅ SIMPLIFICADO: Computeds essenciais
+// ✅ Computeds existentes (mantidos)
 const faturamentoMaximo = computed(() => {
   return (rifa.value.totalTickets || 0) * (rifa.value.ticketPrice || 0)
 })
@@ -594,7 +711,9 @@ const getStatusText = (status) => {
     active: 'Ativa',
     paused: 'Pausada',
     finished: 'Finalizada',
-    cancelled: 'Cancelada'
+    cancelled: 'Cancelada',
+    deleted: 'Removida',
+    not_found: 'Não encontrada'
   }
   return statusMap[status] || status
 }
@@ -621,17 +740,48 @@ const carregarDados = async () => {
       throw new Error('ID da rifa não encontrado na URL')
     }
     
-    // Carregar dados da rifa
+    // Fazer requisição para carregar dados
     const rifaResponse = await rifasAPI.get(rifaId)
     console.log('📥 Resposta da API:', rifaResponse.data)
     
-    // ✅ PROCESSAR resposta da API com estrutura correta
+    // ✅ NOVO: Verificar se a resposta indica rifa indisponível
+    if (!rifaResponse.data.success && rifaResponse.data.message) {
+      const message = rifaResponse.data.message.toLowerCase()
+      
+      // Detectar diferentes tipos de indisponibilidade
+      if (message.includes('não está disponível') || 
+          message.includes('cancelada') || 
+          message.includes('removida') ||
+          message.includes('não encontrada')) {
+        
+        // Determinar o status provável baseado na mensagem
+        let status = 'cancelled'
+        if (message.includes('removida') || message.includes('deletada')) {
+          status = 'deleted'
+        } else if (message.includes('não encontrada')) {
+          status = 'not_found'
+        }
+        
+        // Configurar dados para o modal
+        unavailableReason.value = {
+          status: status,
+          message: rifaResponse.data.message,
+          rifaId: rifaId
+        }
+        
+        // Mostrar modal de indisponibilidade
+        showUnavailableModal.value = true
+        isLoading.value = false
+        return
+      }
+    }
+    
+    // ✅ Continuar com o processamento normal se a rifa estiver disponível
     let rifaData = null
     
     if (rifaResponse.data && rifaResponse.data.success === true) {
-      // ✅ ESTRUTURA CORRETA: data.raffle (conforme exemplo da API)
-      rifaData = rifaResponse.data.data?.raffle
-      console.log('✅ Dados da rifa extraídos de data.raffle:', rifaData)
+      rifaData = rifaResponse.data.data?.raffle || rifaResponse.data.data
+      console.log('✅ Dados da rifa extraídos:', rifaData)
     } else if (rifaResponse.data?.data) {
       rifaData = rifaResponse.data.data
       console.log('✅ Dados extraídos de data:', rifaData)
@@ -647,7 +797,7 @@ const carregarDados = async () => {
     
     console.log('🎯 Dados processados da rifa:', rifaData)
     
-    // ✅ MAPEAR dados com nomes corretos da API
+    // ✅ MAPEAR dados (código existente mantido)
     Object.assign(rifa.value, {
       id: rifaData.id,
       title: rifaData.title || 'Rifa sem nome',
@@ -661,7 +811,6 @@ const carregarDados = async () => {
       endDate: rifaData.drawDate || rifaData.endDate,
       createdAt: rifaData.createdAt,
       updatedAt: rifaData.updatedAt,
-      // ✅ NOVOS CAMPOS da API
       drawType: rifaData.drawType,
       prizes: rifaData.prizes || [],
       settings: rifaData.settings || {},
@@ -671,7 +820,7 @@ const carregarDados = async () => {
       availableTickets: rifaData.availableTickets || 0
     })
     
-    // ✅ CALCULAR campos derivados se necessário
+    // ✅ CALCULAR campos derivados (código existente)
     if (!rifa.value.progress && rifa.value.totalTickets > 0) {
       rifa.value.progress = (rifa.value.soldTickets / rifa.value.totalTickets) * 100
     }
@@ -682,7 +831,7 @@ const carregarDados = async () => {
     
     console.log('✅ Dados da rifa mapeados:', rifa.value)
     
-    // ✅ CARREGAR vendas (opcional)
+    // ✅ CARREGAR vendas (código existente mantido)
     try {
       console.log('💳 Carregando vendas...')
       const vendasResponse = await reportsAPI.getSales({ raffleId: rifaId })
@@ -698,7 +847,6 @@ const carregarDados = async () => {
         vendasData = vendasResponse.data
       }
       
-      // ✅ MAPEAR vendas
       vendas.value.splice(0, vendas.value.length, ...vendasData.map(venda => ({
         id: venda.id || venda._id,
         buyerName: venda.buyerName || venda.buyer?.name || venda.customerName || 'N/A',
@@ -715,55 +863,94 @@ const carregarDados = async () => {
       
     } catch (vendasError) {
       console.warn('⚠️ Erro ao carregar vendas (continuando):', vendasError)
-      vendas.value.splice(0) // Limpar array
+      vendas.value.splice(0)
     }
     
     console.log('🎉 Carregamento concluído com sucesso!')
-    
-    // ✅ AGUARDAR um momento para garantir renderização
-    await new Promise(resolve => setTimeout(resolve, 50))
-    
-    // ✅ VERIFICAÇÃO FINAL
-    console.log('🔍 Verificação final dos dados exibidos:', {
-      title: rifa.value.title,
-      ticketPrice: rifa.value.ticketPrice,
-      totalTickets: rifa.value.totalTickets,
-      soldTickets: rifa.value.soldTickets,
-      progress: rifa.value.progress,
-      revenue: rifa.value.revenue,
-      status: rifa.value.status
-    })
-    
-    // ✅ FORÇAR atualização da interface
     await nextTick()
     
   } catch (error) {
     console.error('💥 Erro ao carregar dados:', error)
     
     let errorMessage = 'Erro ao carregar dados da rifa'
+    let shouldShowUnavailable = false
     
-    if (error.response?.status === 404) {
-      errorMessage = 'Rifa não encontrada'
-    } else if (error.response?.status === 403) {
-      errorMessage = 'Você não tem permissão para visualizar esta rifa'  
-    } else if (error.response?.status === 401) {
-      errorMessage = 'Sessão expirada, faça login novamente'
-    } else if (error.message) {
-      errorMessage = `Erro: ${error.message}`
+    // ✅ NOVO: Verificar se é erro de rifa indisponível
+    if (error.response?.status === 403 || error.response?.status === 404) {
+      const message = error.response?.data?.message || ''
+      
+      if (message.includes('não está disponível') || 
+          message.includes('cancelada') || 
+          message.includes('removida')) {
+        
+        unavailableReason.value = {
+          status: 'cancelled',
+          message: message,
+          rifaId: route.params.id
+        }
+        
+        shouldShowUnavailable = true
+      } else if (error.response?.status === 404) {
+        unavailableReason.value = {
+          status: 'not_found',
+          message: 'Rifa não encontrada no sistema',
+          rifaId: route.params.id
+        }
+        
+        shouldShowUnavailable = true
+      }
     }
     
-    showMessage(errorMessage, 'error')
-    
-    // Redirecionar apenas em casos críticos
-    if (error.response?.status === 404 || error.response?.status === 403) {
-      setTimeout(() => {
-        router.push('/rifas')
-      }, 2000)
+    if (shouldShowUnavailable) {
+      showUnavailableModal.value = true
+    } else {
+      // Erro técnico/genérico - manter comportamento original
+      if (error.response?.status === 404) {
+        errorMessage = 'Rifa não encontrada'
+      } else if (error.response?.status === 403) {
+        errorMessage = 'Você não tem permissão para visualizar esta rifa'  
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Sessão expirada, faça login novamente'
+      }
+      
+      showMessage(errorMessage, 'error')
+      
+      // Redirecionamento apenas para erros técnicos críticos
+      if (error.response?.status === 404 || error.response?.status === 403) {
+        setTimeout(() => {
+          router.push('/rifas')
+        }, 2000)
+      }
     }
     
   } finally {
     isLoading.value = false
   }
+}
+
+// ✅ NOVAS FUNÇÕES: Modal de indisponibilidade
+const closeUnavailableModal = () => {
+  showUnavailableModal.value = false
+  unavailableReason.value = null
+  
+  // ✅ SEMPRE redirecionar para a lista de rifas ao fechar o modal
+  router.push('/rifas')
+}
+
+const voltarParaLista = () => {
+  closeUnavailableModal()
+  router.push('/rifas')
+}
+
+const criarNovaRifa = () => {
+  closeUnavailableModal()
+  router.push('/rifas/criar')
+}
+
+const atualizarEVoltar = async () => {
+  closeUnavailableModal()
+  showMessage('Atualizando lista de rifas...', 'info')
+  router.push('/rifas')
 }
 
 // ✅ FUNÇÕES básicas
@@ -979,6 +1166,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* ===== ESTILOS EXISTENTES MANTIDOS ===== */
 .gerenciar-rifa {
   width: 100%;
   max-width: 1400px;
@@ -1909,6 +2097,7 @@ onMounted(() => {
     padding: 0 1.5rem 2rem;
   }
   
+   
   .venda-item-enhanced {
     flex-direction: column;
     gap: 1.5rem;
@@ -1922,7 +2111,7 @@ onMounted(() => {
   }
   
   .numeros-container-enhanced {
-    padding: 0 1.5rem 2rem;
+    padding: 0 1.5rem  2rem;
   }
   
   .numeros-grid-enhanced {
@@ -1980,5 +2169,500 @@ onMounted(() => {
     text-align: center;
     gap: 0.5rem;
   }
+}
+
+/* ===== NOVO: Estilos do Modal (copiados da MinhasRifas.vue) ===== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+  backdrop-filter: blur(8px);
+  animation: overlayFadeIn 0.2s ease;
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-container {
+  background: white;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 
+    0 10px 40px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
+  animation: modalSlideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.modal-container.unavailable-modal {
+  max-width: 520px;
+}
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ===== HEADER DO MODAL ===== */
+.modal-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem 1.5rem 0;
+  position: relative;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  border-bottom: 1px solid #e5e7eb;
+  margin: 0;
+  border-radius: 16px 16px 0 0;
+}
+
+.modal-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.modal-icon.unavailable {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  color: #dc2626;
+  border: 1px solid #ef4444;
+}
+
+.modal-title {
+  flex: 1;
+}
+
+.modal-title h3 {
+  color: #1f2937;
+  margin: 0 0 0.25rem 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.modal-title p {
+  color: #6b7280;
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+.modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: #f9fafb;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.modal-close:hover {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+/* ===== CORPO DO MODAL ===== */
+.modal-body {
+  padding: 1.5rem;
+  background: white;
+}
+
+.unavailable-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.status-info-card,
+.reason-card,
+.available-actions-card {
+  display: flex;
+  gap: 1rem;
+  padding: 1.25rem;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.status-info-card {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border-color: #f87171;
+}
+
+.reason-card {
+  background: linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%);
+  border-color: #fbbf24;
+}
+
+.available-actions-card {
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+  border-color: #0ea5e9;
+}
+
+.status-icon,
+.reason-icon,
+.actions-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.status-content,
+.reason-content,
+.actions-content {
+  flex: 1;
+}
+
+.status-content h4,
+.reason-content h4,
+.actions-content h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #374151;
+}
+
+.status-badge-modal {
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-block;
+}
+
+.status-badge-modal.cancelled {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #ef4444;
+}
+
+.status-badge-modal.deleted {
+  background: #f3f4f6;
+  color: #6b7280;
+  border: 1px solid #9ca3af;
+}
+
+.status-badge-modal.not_found {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #f59e0b;
+}
+
+.reason-list,
+.actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.reason-item,
+.action-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  color: #374151;
+  font-weight: 500;
+}
+
+.reason-item svg {
+  color: #f59e0b;
+  flex-shrink: 0;
+}
+
+.action-item svg {
+  color: #0ea5e9;
+  flex-shrink: 0;
+}
+
+/* ===== FOOTER DO MODAL ===== */
+.modal-footer {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  padding: 1.5rem;
+  border-top: 1px solid #f1f5f9;
+  background: linear-gradient(135deg, #fafbfc 0%, #f8fafc 100%);
+  margin: 0;
+}
+
+.modal-footer .btn {
+  min-width: 120px;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.modal-footer .btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.modal-footer .btn:hover::before {
+  left: 100%;
+}
+
+.modal-footer .btn-outline {
+  background: white;
+  color: #6b7280;
+  border-color: #d1d5db;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.modal-footer .btn-outline:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #9ca3af;
+  color: #4b5563;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.modal-footer .btn-success {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+  border: none;
+  position: relative;
+}
+
+.modal-footer .btn-success:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+}
+
+.modal-footer .btn-success:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.2);
+}
+
+.modal-footer .btn-success:active {
+  transform: translateY(-1px);
+}
+
+/* ===== ÍCONES DOS BOTÕES ===== */
+.modal-footer .btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.modal-footer .btn:hover svg {
+  transform: scale(1.1);
+}
+
+/* ===== RESPONSIVIDADE DO MODAL ===== */
+@media (max-width: 640px) {
+  .unavailable-modal {
+    margin: 1rem;
+    max-width: calc(100vw - 2rem);
+  }
+  
+  .status-info-card,
+  .reason-card,
+  .available-actions-card {
+    flex-direction: column;
+    text-align: center;
+    gap: 0.75rem;
+  }
+  
+  .modal-footer {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .modal-footer .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ===== ESTADOS DE FOCUS MELHORADOS ===== */
+.modal-footer .btn:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.modal-close:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* ===== SOMBRAS E PROFUNDIDADE ===== */
+.modal-container {
+  box-shadow: 
+    0 20px 50px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(0, 0, 0, 0.05),
+    0 0 100px rgba(34, 197, 94, 0.1);
+}
+
+/* ===== EFEITOS DE BRILHO ===== */
+.btn-success {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-success::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transform: rotate(45deg);
+  transition: all 0.6s ease;
+  opacity: 0;
+}
+
+.btn-success:hover::after {
+  opacity: 1;
+  transform: rotate(45deg) translate(50%, 50%);
+}
+
+/* ===== ANIMAÇÕES MELHORADAS ===== */
+.modal-container {
+  animation: modalConfirmEnter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes modalConfirmEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(50px) scale(0.9);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateY(-10px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ===== LOADING SPINNER ===== */
+.loading-spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.status-updating {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: #f1f5f9;
+  border-radius: 8px;
+  margin-top: 1rem;
+  color: #6b7280;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* ===== MELHORIAS VISUAIS ===== */
+.modal-header {
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.unavailable-details {
+  position: relative;
+}
+
+.status-info-card::before,
+.reason-card::before,
+.available-actions-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  pointer-events: none;
+}
+
+.status-info-card,
+.reason-card,
+.available-actions-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.status-info-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  animation: shimmer 2s infinite;
+  pointer-events: none;
+}
+
+@keyframes shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
 }
 </style>
