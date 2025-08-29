@@ -32,6 +32,113 @@
           </div>
         </div>
 
+        <!-- ✅ NOVO: Controle de Status da Rifa -->
+        <div class="status-control-card">
+          <div class="card-header">
+            <h2>⚙️ Controle de Status</h2>
+            <div class="status-info">
+              <span class="current-status-label">Status atual:</span>
+              <span :class="['status-badge-medium', rifa.status]">
+                {{ getStatusText(rifa.status) }}
+              </span>
+            </div>
+          </div>
+          
+          <div class="status-actions-grid">
+            <!-- Ativar Rifa -->
+            <button 
+              v-if="['draft', 'paused'].includes(rifa.status)"
+              @click="atualizarStatus('active')"
+              class="status-action-card active-card"
+              :disabled="isUpdatingStatus"
+            >
+              <div class="status-action-icon">🚀</div>
+              <div class="status-action-content">
+                <h3>Ativar Rifa</h3>
+                <p>Rifa ficará disponível para vendas</p>
+                <div class="status-requirements">
+                  <span v-if="rifa.totalTickets > 0" class="requirement-ok">✅ Números configurados</span>
+                  <span v-else class="requirement-error">❌ Configure os números</span>
+                  
+                  <span v-if="rifa.ticketPrice > 0" class="requirement-ok">✅ Preço definido</span>
+                  <span v-else class="requirement-error">❌ Defina o preço</span>
+                </div>
+              </div>
+            </button>
+
+            <!-- Pausar Rifa -->
+            <button 
+              v-if="rifa.status === 'active'"
+              @click="atualizarStatus('paused')"
+              class="status-action-card paused-card"
+              :disabled="isUpdatingStatus"
+            >
+              <div class="status-action-icon">⏸️</div>
+              <div class="status-action-content">
+                <h3>Pausar Rifa</h3>
+                <p>Interromper vendas temporariamente</p>
+                <div class="status-warning">
+                  <span>⚠️ Vendas serão interrompidas</span>
+                </div>
+              </div>
+            </button>
+
+            <!-- Finalizar Rifa -->
+            <button 
+              v-if="['active', 'paused'].includes(rifa.status) && (rifa.soldTickets > 0)"
+              @click="atualizarStatus('finished')"
+              class="status-action-card finished-card"
+              :disabled="isUpdatingStatus"
+            >
+              <div class="status-action-icon">🏁</div>
+              <div class="status-action-content">
+                <h3>Finalizar Rifa</h3>
+                <p>Encerrar rifa e preparar sorteio</p>
+                <div class="status-info-small">
+                  <span>💰 {{ rifa.soldTickets }} números vendidos</span>
+                </div>
+              </div>
+            </button>
+
+            <!-- Cancelar Rifa -->
+            <button 
+              v-if="!['finished', 'cancelled'].includes(rifa.status)"
+              @click="atualizarStatus('cancelled')"
+              class="status-action-card cancelled-card"
+              :disabled="isUpdatingStatus"
+            >
+              <div class="status-action-icon">🗑️</div>
+              <div class="status-action-content">
+                <h3>Cancelar Rifa</h3>
+                <p>Cancelar rifa permanentemente</p>
+                <div class="status-warning">
+                  <span>⚠️ Esta ação não pode ser desfeita</span>
+                </div>
+              </div>
+            </button>
+
+            <!-- Reativar Rifa Cancelada (apenas para debug/admin) -->
+            <button 
+              v-if="rifa.status === 'cancelled'"
+              @click="atualizarStatus('draft')"
+              class="status-action-card draft-card"
+              :disabled="isUpdatingStatus"
+            >
+              <div class="status-action-icon">🔄</div>
+              <div class="status-action-content">
+                <h3>Reativar como Rascunho</h3>
+                <p>Voltar rifa para rascunho</p>
+              </div>
+            </button>
+          </div>
+
+          <!-- Loading indicator -->
+          <div v-if="isUpdatingStatus" class="status-updating">
+            <div class="loading-spinner-small"></div>
+            <span>Atualizando status...</span>
+          </div>
+        </div>
+
         <!-- ✅ MELHORADO: Cards de Estatísticas principais -->
         <div class="main-stats">
           <div class="stat-card-large vendidos">
@@ -331,7 +438,9 @@ const route = useRoute()
 const router = useRouter()
 const { showMessage } = useMessage()
 
+// ✅ ADICIONAR variável de controle
 const isLoading = ref(true)
+const isUpdatingStatus = ref(false) // ✅ NOVO
 
 // ✅ CORRIGIDO: Inicializar refs com objetos vazios reativos
 const rifa = ref({
@@ -747,6 +856,122 @@ const realizarSorteio = () => {
   showMessage('Funcionalidade de sorteio em desenvolvimento', 'info')
 }
 
+// ✅ ADICIONAR função para atualizar status
+const atualizarStatus = async (novoStatus) => {
+  try {
+    // ✅ Validações específicas por status
+    if (novoStatus === 'active') {
+      if (!rifa.value.totalTickets || rifa.value.totalTickets <= 0) {
+        showMessage('Configure a quantidade de números antes de ativar a rifa', 'error')
+        return
+      }
+      if (!rifa.value.ticketPrice || rifa.value.ticketPrice <= 0) {
+        showMessage('Defina o preço dos números antes de ativar a rifa', 'error')
+        return
+      }
+    }
+
+    // Confirmações específicas
+    let mensagemConfirmacao = ''
+    let tipoConfirmacao = 'info'
+
+    switch (novoStatus) {
+      case 'active':
+        mensagemConfirmacao = 'Tem certeza que deseja ATIVAR esta rifa?\n\nEla ficará disponível para vendas imediatamente.'
+        break
+      case 'paused':
+        mensagemConfirmacao = 'Tem certeza que deseja PAUSAR esta rifa?\n\nAs vendas serão interrompidas temporariamente.'
+        tipoConfirmacao = 'warning'
+        break
+      case 'finished':
+        mensagemConfirmacao = `Tem certeza que deseja FINALIZAR esta rifa?\n\n${rifa.value.soldTickets} números foram vendidos.\nApós finalizar, você poderá realizar o sorteio.`
+        tipoConfirmacao = 'info'
+        break
+      case 'cancelled':
+        mensagemConfirmacao = 'ATENÇÃO! Tem certeza que deseja CANCELAR esta rifa?\n\n⚠️ Esta ação NÃO PODE ser desfeita!\n⚠️ Todos os dados de venda serão mantidos para histórico.'
+        tipoConfirmacao = 'danger'
+        break
+      case 'draft':
+        mensagemConfirmacao = 'Reativar esta rifa como rascunho?\n\nEla voltará ao estado de edição.'
+        break
+      default:
+        mensagemConfirmacao = `Alterar status para "${getStatusText(novoStatus)}"?`
+    }
+
+    const confirmacao = confirm(mensagemConfirmacao)
+    if (!confirmacao) {
+      return
+    }
+
+    isUpdatingStatus.value = true
+
+    console.log('🔄 Atualizando status da rifa:', {
+      rifaId: rifa.value.id,
+      statusAtual: rifa.value.status,
+      novoStatus: novoStatus
+    })
+
+    // ✅ Fazer requisição para API
+    const response = await rifasAPI.updateStatus(rifa.value.id, novoStatus)
+
+    if (response.data.success) {
+      // ✅ Atualizar status local
+      rifa.value.status = novoStatus
+      
+      // ✅ Mensagens de sucesso específicas
+      let mensagemSucesso = ''
+      switch (novoStatus) {
+        case 'active':
+          mensagemSucesso = '🚀 Rifa ativada com sucesso! Agora está disponível para vendas.'
+          break
+        case 'paused':
+          mensagemSucesso = '⏸️ Rifa pausada. As vendas foram interrompidas.'
+          break
+        case 'finished':
+          mensagemSucesso = '🏁 Rifa finalizada! Agora você pode realizar o sorteio.'
+          break
+        case 'cancelled':
+          mensagemSucesso = '🗑️ Rifa cancelada permanentemente.'
+          break
+        case 'draft':
+          mensagemSucesso = '📝 Rifa reativada como rascunho.'
+          break
+        default:
+          mensagemSucesso = `Status alterado para "${getStatusText(novoStatus)}" com sucesso!`
+      }
+      
+      showMessage(mensagemSucesso, 'success')
+
+      // ✅ Recarregar dados para garantir sincronização
+      await carregarDados()
+      
+    } else {
+      throw new Error(response.data.message || 'Erro ao atualizar status')
+    }
+
+  } catch (error) {
+    console.error('💥 Erro ao atualizar status:', error)
+    
+    let mensagemErro = 'Erro ao atualizar status da rifa'
+    
+    // ✅ Tratamento de erros específicos
+    if (error.response?.status === 400) {
+      mensagemErro = error.response.data?.message || 'Status inválido para esta rifa'
+    } else if (error.response?.status === 403) {
+      mensagemErro = 'Você não tem permissão para alterar o status desta rifa'
+    } else if (error.response?.status === 404) {
+      mensagemErro = 'Rifa não encontrada'
+    } else if (error.message) {
+      mensagemErro = error.message
+    }
+    
+    showMessage(mensagemErro, 'error')
+    
+  } finally {
+    isUpdatingStatus.value = false
+  }
+}
+
 // ✅ EXECUTAR quando montar
 onMounted(() => {
   carregarDados()
@@ -864,6 +1089,120 @@ onMounted(() => {
   display: flex;
   gap: 1rem;
   justify-content: flex-end;
+}
+
+/* ===== CONTROLE DE STATUS ===== */
+.status-control-card {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  border: 1px solid #f1f3f4;
+  margin-bottom: 2rem;
+}
+
+.card-header {
+  padding: 2rem 2.5rem 0 2.5rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.card-header h2 {
+  color: #1a1d29;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.current-status-label {
+  font-size: 0.9rem;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.status-badge-medium {
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-block;
+}
+
+.status-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  padding: 0 2.5rem 2.5rem 2.5rem;
+}
+
+.status-action-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.5rem;
+  border: 2px solid #f1f3f4;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+  background: #fafbfc;
+}
+
+.status-action-card:hover {
+  border-color: #667eea;
+  background: #f8faff;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.1);
+}
+
+.status-action-card.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  border-color: #e5e7eb;
+}
+
+.status-action-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  flex-shrink: 0;
+}
+
+.status-requirements {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #374151;
+}
+
+.requirement-ok {
+  color: #166534;
+}
+
+.requirement-error {
+  color: #dc2626;
+}
+
+.status-warning {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #92400e;
 }
 
 /* ===== ESTATÍSTICAS PRINCIPAIS ===== */

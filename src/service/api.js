@@ -510,11 +510,16 @@ export const rifasAPI = {
   // Deletar rifa
   delete: (id) => api.delete(`/raffles/${id}`),
   
-  // Alterar status da rifa
+  // ✅ ADICIONAR método para atualizar status (se não existir)
   updateStatus: async (id, status) => {
     try {
-      return await api.patch(`/raffles/${id}/status`, { status })
+      console.log('🔄 RIFAS: Atualizando status...', { id, status })
+      
+      const response = await api.put(`/raffles/${id}/status`, { status })
+      console.log('✅ RIFAS: Status atualizado:', response.data)
+      return response
     } catch (error) {
+      console.error('💥 RIFAS: Erro ao atualizar status:', error)
       throw new Error(error.response?.data?.message || 'Erro ao alterar status da rifa')
     }
   },
