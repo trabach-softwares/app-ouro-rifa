@@ -468,8 +468,18 @@ export const rifasAPI = {
     return rifasAPI.listMyRaffles(params)
   },
   
-  // Buscar rifa específica
-  get: (id) => api.get(`/raffles/${id}`),
+  // ✅ Buscar rifa específica por ID
+  get: async (id) => {
+    try {
+      console.log('🎯 RIFAS: Buscando rifa por ID...', id)
+      const response = await api.get(`/raffles/${id}`)
+      console.log('📥 RIFAS: Rifa encontrada:', response.data)
+      return response
+    } catch (error) {
+      console.error('💥 RIFAS: Erro ao buscar rifa:', error)
+      throw error
+    }
+  },
   
   // ✅ NOVO: Criar nova rifa (com suporte a FormData)
   create: async (data) => {
@@ -505,31 +515,69 @@ export const rifasAPI = {
   },
   
   // Atualizar rifa
-  update: (id, data) => api.put(`/raffles/${id}`, data),
-  
-  // Deletar rifa
-  delete: (id) => api.delete(`/raffles/${id}`),
-  
-  // ✅ ADICIONAR método para atualizar status (se não existir)
-  updateStatus: async (id, status) => {
+  update: async (id, data) => {
     try {
-      console.log('🔄 RIFAS: Atualizando status...', { id, status })
+      console.log('💾 RIFAS: Atualizando rifa...', { id, data })
       
-      const response = await api.put(`/raffles/${id}/status`, { status })
+      const config = {
+        headers: {
+          'Content-Type': data instanceof FormData ? 'multipart/form-data' : 'application/json'
+        }
+      }
+      
+      const response = await api.put(`/raffles/${id}`, data, config)
+      console.log('✅ RIFAS: Rifa atualizada:', response.data)
+      return response
+    } catch (error) {
+      console.error('💥 RIFAS: Erro ao atualizar:', error)
+      throw error
+    }
+  },
+  
+  // ✅ ADICIONAR: Método getById para compatibilidade
+  getById: async (id) => {
+    try {
+      console.log('🎯 RIFAS: Buscando rifa por ID (getById)...', id)
+      const response = await api.get(`/raffles/${id}`)
+      console.log('📥 RIFAS: Rifa encontrada:', response.data)
+      return response
+    } catch (error) {
+      console.error('💥 RIFAS: Erro ao buscar rifa:', error)
+      throw error
+    }
+  },
+  
+  // ✅ ADICIONAR: Método para comprar números
+  comprarNumeros: async (rifaId, numeros) => {
+    try {
+      console.log('🎫 RIFAS: Comprando números...', { rifaId, numeros })
+      
+      const payload = {
+        ticketNumbers: numeros,
+        quantity: numeros.length
+      }
+      
+      const response = await api.post(`/raffles/${rifaId}/purchase`, payload)
+      console.log('✅ RIFAS: Compra realizada:', response.data)
+      return response
+    } catch (error) {
+      console.error('💥 RIFAS: Erro ao comprar números:', error)
+      throw error
+    }
+  },
+
+  // ✅ ADICIONAR: Método para atualizar status
+  updateStatus: async (rifaId, status) => {
+    try {
+      console.log('🔄 RIFAS: Atualizando status...', { rifaId, status })
+      
+      const payload = { status }
+      const response = await api.put(`/raffles/${rifaId}/status`, payload)
       console.log('✅ RIFAS: Status atualizado:', response.data)
       return response
     } catch (error) {
       console.error('💥 RIFAS: Erro ao atualizar status:', error)
-      throw new Error(error.response?.data?.message || 'Erro ao alterar status da rifa')
-    }
-  },
-  
-  // Método para alternar status (compatibilidade)
-  toggleStatus: async (id) => {
-    try {
-      return await api.patch(`/raffles/${id}/toggle-status`)
-    } catch (error) {
-      throw new Error(error.response?.data?.message || 'Erro ao alterar status da rifa')
+      throw error
     }
   }
 }

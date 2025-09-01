@@ -139,12 +139,12 @@
             </div>
             
             <div class="rifa-actions">
-              <button 
-                @click="gerenciarRifa(rifa.id)"
+              <router-link 
+                :to="`/rifas/${rifa.id}`"
                 class="btn btn-outline"
               >
                 📊 Gerenciar
-              </button>
+              </router-link>
               <button 
                 v-if="rifa.status === 'pending'"
                 @click="ativarRifa(rifa.id)"
@@ -1723,7 +1723,7 @@ const handleImageError = (event) => {
   padding: 1.5rem;
   border-top: 1px solid #f1f5f9;
   background: linear-gradient(135deg, #fafbfc 0%, #f8fafc 100%);
-  margin: 0;
+  margin:  0;
 }
 
 .modal-footer .btn {

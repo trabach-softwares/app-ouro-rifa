@@ -10,7 +10,9 @@
 
       <!-- Conteúdo normal da tela -->
       <div v-else>
-        <!-- ✅ NOVO: Header da Rifa - Nome em destaque -->
+        <!-- ✅ REMOVIDO: Header da página -->
+
+        <!-- ✅ MANTER: Header da Rifa COM botão editar no canto direito -->
         <div class="rifa-header">
           <div class="rifa-header-content">
             <div class="rifa-title-section">
@@ -23,8 +25,9 @@
               </span>
             </div>
           </div>
+          <!-- ✅ MANTER: Botões no header da rifa -->
           <div class="header-actions">
-            <router-link :to="`/rifas/${$route.params.id}`" class="btn btn-outline">
+            <router-link :to="`/rifas/${rifa.id}/editar`" class="btn btn-outline">
               ✏️ Editar
             </router-link>
             <router-link to="/rifas" class="btn btn-secondary">
@@ -39,30 +42,31 @@
             <h2>⚙️ Controle de Status</h2>
             <div class="status-info">
               <span class="current-status-label">Status atual:</span>
-              <span :class="['status-badge-medium', rifa.status]">
+              <span :class="['current-status-value', rifa.status]">
                 {{ getStatusText(rifa.status) }}
               </span>
             </div>
           </div>
-          
+
           <div class="status-actions-grid">
             <!-- Ativar Rifa -->
             <button 
-              v-if="['draft', 'paused'].includes(rifa.status)"
+              v-if="rifa.status === 'draft' || rifa.status === 'paused'"
               @click="atualizarStatus('active')"
               class="status-action-card active-card"
               :disabled="isUpdatingStatus"
             >
-              <div class="status-action-icon">🚀</div>
+              <div class="status-action-icon">▶️</div>
               <div class="status-action-content">
                 <h3>Ativar Rifa</h3>
                 <p>Rifa ficará disponível para vendas</p>
                 <div class="status-requirements">
-                  <span v-if="rifa.totalTickets > 0" class="requirement-ok">✅ Números configurados</span>
-                  <span v-else class="requirement-error">❌ Configure os números</span>
-                  
-                  <span v-if="rifa.ticketPrice > 0" class="requirement-ok">✅ Preço definido</span>
-                  <span v-else class="requirement-error">❌ Defina o preço</span>
+                  <span class="requirement-item" :class="{ 'valid': rifa.totalTickets > 0 }">
+                    ✅ Números configurados
+                  </span>
+                  <span class="requirement-item" :class="{ 'valid': rifa.ticketPrice > 0 }">
+                    ✅ Preço definido
+                  </span>
                 </div>
               </div>
             </button>
@@ -71,50 +75,41 @@
             <button 
               v-if="rifa.status === 'active'"
               @click="atualizarStatus('paused')"
-              class="status-action-card paused-card"
+              class="status-action-card pause-card"
               :disabled="isUpdatingStatus"
             >
               <div class="status-action-icon">⏸️</div>
               <div class="status-action-content">
                 <h3>Pausar Rifa</h3>
                 <p>Interromper vendas temporariamente</p>
-                <div class="status-warning">
-                  <span>⚠️ Vendas serão interrompidas</span>
-                </div>
               </div>
             </button>
 
             <!-- Finalizar Rifa -->
             <button 
-              v-if="['active', 'paused'].includes(rifa.status) && (rifa.soldTickets > 0)"
+              v-if="rifa.status === 'active' && rifa.soldTickets > 0"
               @click="atualizarStatus('finished')"
-              class="status-action-card finished-card"
+              class="status-action-card finish-card"
               :disabled="isUpdatingStatus"
             >
               <div class="status-action-icon">🏁</div>
               <div class="status-action-content">
                 <h3>Finalizar Rifa</h3>
-                <p>Encerrar rifa e preparar sorteio</p>
-                <div class="status-info-small">
-                  <span>💰 {{ rifa.soldTickets }} números vendidos</span>
-                </div>
+                <p>Encerrar vendas e preparar sorteio</p>
               </div>
             </button>
 
             <!-- Cancelar Rifa -->
             <button 
-              v-if="!['finished', 'cancelled'].includes(rifa.status)"
+              v-if="['draft', 'paused', 'active'].includes(rifa.status)"
               @click="atualizarStatus('cancelled')"
-              class="status-action-card cancelled-card"
+              class="status-action-card cancel-card"
               :disabled="isUpdatingStatus"
             >
-              <div class="status-action-icon">🗑️</div>
+              <div class="status-action-icon">❌</div>
               <div class="status-action-content">
                 <h3>Cancelar Rifa</h3>
-                <p>Cancelar rifa permanentemente</p>
-                <div class="status-warning">
-                  <span>⚠️ Esta ação não pode ser desfeita</span>
-                </div>
+                <p>Cancelar permanentemente</p>
               </div>
             </button>
 
@@ -378,7 +373,7 @@
           </div>
         </div>
 
-        <!-- ✅ MELHORADO: Ações Rápidas -->
+        <!-- ✅ CORRETO: Ações rápidas -->
         <div class="content-card">
           <div class="card-header">
             <h2>⚡ Ações Rápidas</h2>
@@ -411,14 +406,6 @@
                 <h3>Realizar Sorteio</h3>
                 <p v-if="podeRealizarSorteio">Sortear o número ganhador agora</p>
                 <p v-else class="text-muted">Aguardando data de término ou vendas</p>
-              </div>
-            </button>
-            
-            <button @click="$router.push(`/rifas/${rifa.id}`)" class="action-card-enhanced">
-              <div class="action-icon-enhanced">⚙️</div>
-              <div class="action-content">
-                <h3>Configurações</h3>
-                <p>Editar dados e configurações da rifa</p>
               </div>
             </button>
           </div>
@@ -1201,7 +1188,7 @@ onMounted(() => {
   to { transform: rotate(360deg); }
 }
 
-/* ===== HEADER DA RIFA ===== */
+/* ===== HEADER DA RIFA (único header agora) ===== */
 .rifa-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
@@ -1273,10 +1260,64 @@ onMounted(() => {
   border-color: #f59e0b;
 }
 
+.status-badge-large.finished {
+  background: rgba(219, 234, 254, 0.9);
+  color: #1e40af;
+  border-color: #3b82f6;
+}
+
+.status-badge-large.cancelled {
+  background: rgba(254, 226, 226, 0.9);
+  color: #dc2626;
+  border-color: #ef4444;
+}
+
+/* ===== AÇÕES DO HEADER DA RIFA ===== */
 .header-actions {
   display: flex;
   gap: 1rem;
   justify-content: flex-end;
+}
+
+.header-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  border: 2px solid transparent;
+}
+
+.header-actions .btn-outline {
+  background: white;
+  color: #667eea;
+  border-color: #667eea;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+}
+
+.header-actions .btn-outline:hover {
+  background: #667eea;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.25);
+}
+
+.header-actions .btn-secondary {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.header-actions .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
 }
 
 /* ===== CONTROLE DE STATUS ===== */
@@ -2044,7 +2085,7 @@ onMounted(() => {
 .empty-state p {
   margin-bottom: 2rem;
   font-size: 1rem;
-  line-height: 1.6;
+  line-height:  1.6;
 }
 
 /* ===== RESPONSIVIDADE ===== */
@@ -2060,6 +2101,7 @@ onMounted(() => {
   .rifa-header-content {
     flex-direction: column;
     gap: 1.5rem;
+    margin-bottom: 1.5rem;
   }
   
   .rifa-title {
@@ -2069,79 +2111,11 @@ onMounted(() => {
   .header-actions {
     justify-content: center;
     width: 100%;
+    flex-wrap: wrap;
   }
   
-  .main-stats {
-    grid-template-columns: 1fr;
-  }
-  
-  .stat-header {
-    gap: 1rem;
-  }
-  
-  .stat-number-large {
-    font-size: 2.5rem;
-  }
-  
-  .details-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .card-header {
-    padding: 1.5rem 2rem 0 2rem;
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  
-  .vendas-list {
-    padding: 0 1.5rem 2rem;
-  }
-  
-   
-  .venda-item-enhanced {
-    flex-direction: column;
-    gap: 1.5rem;
-    text-align: center;
-  }
-  
-  .venda-numeros,
-  .venda-valor {
-    width: 100%;
-    text-align: center;
-  }
-  
-  .numeros-container-enhanced {
-    padding: 0 1.5rem  2rem;
-  }
-  
-  .numeros-grid-enhanced {
-    grid-template-columns: repeat(auto-fill, minmax(45px, 1fr));
-    gap: 0.5rem;
-  }
-  
-  .actions-grid-enhanced {
-    grid-template-columns: 1fr;
-    padding: 0 1.5rem 2rem;
-  }
-  
-  .action-card-enhanced {
-    flex-direction: column;
-    text-align: center;
-    gap: 1rem;
-  }
-  
-  .legenda-enhanced {
-    justify-content: center;
-    gap: 1rem;
-  }
-  
-  .filters {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .search-input {
-    min-width: auto;
+  .rifa-header-status {
+    margin-left: 0;
   }
 }
 
@@ -2150,24 +2124,14 @@ onMounted(() => {
     font-size: 1.75rem;
   }
   
-  .stat-number-large {
-    font-size: 2rem;
-  }
-  
-  .card-header {
-    padding: 1rem 1.5rem 0 1.5rem;
-  }
-  
-  .vendas-list,
-  .numeros-container-enhanced,
-  .actions-grid-enhanced {
-    padding: 0 1rem 1.5rem;
-  }
-  
-  .detail-item {
+  .header-actions {
     flex-direction: column;
-    text-align: center;
-    gap: 0.5rem;
+    gap: 0.75rem;
+  }
+  
+  .header-actions .btn {
+    width: 100%;
+    justify-content: center;
   }
 }
 

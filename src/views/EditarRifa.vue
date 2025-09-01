@@ -6,10 +6,11 @@
       <div class="page-header">
         <div class="header-content">
           <h1>Editar Rifa</h1>
-          <p>Modifique os dados da sua rifa</p>
+          <p>{{ form.titulo || 'Modifique os dados da sua rifa' }}</p>
         </div>
         <div class="header-actions">
-          <router-link :to="`/rifas/${$route.params.id}/gerenciar`" class="btn btn-outline">
+          <!-- ✅ CORRETO: Botão gerenciar volta para rota principal -->
+          <router-link :to="`/rifas/${$route.params.id}`" class="btn btn-outline">
             📊 Gerenciar
           </router-link>
           <router-link to="/rifas" class="btn btn-secondary">
@@ -19,144 +20,151 @@
       </div>
 
       <!-- Loading -->
-      <div v-if="isLoading" class="loading">
+      <div v-if="isLoading" class="loading-container">
         <div class="loading-spinner"></div>
         <p>Carregando dados da rifa...</p>
       </div>
 
-      <!-- Formulário -->
-      <form v-else @submit.prevent="salvarRifa" class="rifa-form">
-        <!-- Informações Básicas -->
-        <div class="content-card">
-          <div class="card-header">
-            <h2>Informações Básicas</h2>
+      <!-- Erro de carregamento -->
+      <div v-else-if="loadError" class="error-container">
+        <div class="error-icon">⚠️</div>
+        <h3>Erro ao carregar rifa</h3>
+        <p>{{ loadError }}</p>
+        <div class="error-actions">
+          <button @click="carregarRifa" class="btn btn-primary">🔄 Tentar Novamente</button>
+          <router-link to="/rifas" class="btn btn-outline">← Voltar à Lista</router-link>
+        </div>
+      </div>
+
+      <!-- Formulário de Edição -->
+      <form v-else @submit.prevent="salvarRifa" class="edit-form">
+        
+        <!-- Status atual da rifa -->
+        <div class="status-card">
+          <div class="status-header">
+            <h3>Status da Rifa</h3>
+            <span :class="['status-badge', form.status]">
+              {{ getStatusText(form.status) }}
+            </span>
           </div>
+          <div v-if="temVendas" class="status-warning">
+            <div class="warning-icon">⚠️</div>
+            <div class="warning-content">
+              <strong>Atenção:</strong> Esta rifa já possui {{ form.numerosVendidos }} número(s) vendido(s). 
+              Alguns campos não podem ser alterados para manter a integridade das vendas.
+            </div>
+          </div>
+        </div>
+
+        <!-- 1. Informações Básicas -->
+        <div class="form-section">
+          <div class="section-header">
+            <h2>📝 Informações Básicas</h2>
+          </div>
+          
           <div class="form-grid">
-            <div class="form-group">
+            <div class="form-group full-width">
               <label for="titulo">Título da Rifa *</label>
               <input
                 id="titulo"
                 v-model="form.titulo"
                 type="text"
-                placeholder="Ex: iPhone 15 Pro Max"
+                placeholder="Ex: iPhone 15 Pro Max - Sorteio Natal 2024"
                 required
                 class="form-input"
+                :class="{ 'error': errors.titulo }"
               />
+              <div v-if="errors.titulo" class="field-error">{{ errors.titulo }}</div>
             </div>
 
-            <div class="form-group">
-              <label for="descricao">Descrição *</label>
+            <div class="form-group full-width">
+              <label for="descricao">Descrição da Rifa *</label>
               <textarea
                 id="descricao"
                 v-model="form.descricao"
-                placeholder="Descreva o prêmio e detalhes importantes..."
+                placeholder="Descreva o prêmio, condições do sorteio, forma de entrega, etc..."
                 required
                 rows="4"
                 class="form-input"
+                :class="{ 'error': errors.descricao }"
               ></textarea>
+              <div v-if="errors.descricao" class="field-error">{{ errors.descricao }}</div>
+              <small class="field-hint">Mínimo 10 caracteres</small>
             </div>
 
             <div class="form-group">
-              <label for="imagem">Imagem do Prêmio</label>
-              <div class="image-upload">
-                <input
-                  id="imagem"
-                  @change="handleImageUpload"
-                  type="file"
-                  accept="image/*"
-                  class="file-input"
-                />
-                <div class="upload-area" @click="$refs.fileInput?.click()">
-                  <div v-if="form.imagemPreview" class="image-preview">
-                    <img :src="form.imagemPreview" alt="Preview" />
-                    <button @click.stop="removeImage" class="remove-image">❌</button>
-                  </div>
-                  <div v-else class="upload-placeholder">
-                    <div class="upload-icon">📷</div>
-                    <p>Clique para alterar a imagem</p>
-                    <small>PNG, JPG até 5MB</small>
-                  </div>
-                </div>
+              <label for="telefone">Telefone de Contato</label>
+              <input
+                id="telefone"
+                v-model="form.telefoneContato"
+                type="tel"
+                placeholder="(11) 99999-9999"
+                class="form-input"
+                :disabled="temVendas"
+              />
+              <small class="field-hint">Telefone público para contato dos participantes</small>
+            </div>
+
+            <div class="form-group">
+              <label for="categoria">Categoria</label>
+              <select
+                id="categoria"
+                v-model="form.categoria"
+                class="form-input"
+                :disabled="temVendas"
+              >
+                <option value="">Selecionar categoria</option>
+                <option value="MONEY">💰 Dinheiro</option>
+                <option value="ELECTRONICS">📱 Eletrônicos</option>
+                <option value="VEHICLE">🚗 Veículo</option>
+                <option value="OTHER">🎁 Outros</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Imagem do Prêmio -->
+        <div class="form-section">
+          <div class="section-header">
+            <h2>🖼️ Imagem do Prêmio</h2>
+          </div>
+          
+          <div class="image-upload-container">
+            <div class="current-image" v-if="form.imagemPreview">
+              <img :src="form.imagemPreview" alt="Imagem atual" />
+              <div class="image-overlay">
+                <button type="button" @click="removeImage" class="remove-btn">❌ Remover</button>
+                <button type="button" @click="$refs.fileInput.click()" class="change-btn">🔄 Alterar</button>
               </div>
             </div>
+            
+            <div v-else class="upload-placeholder" @click="$refs.fileInput.click()">
+              <div class="upload-icon">📷</div>
+              <h4>Adicionar Imagem</h4>
+              <p>Clique para selecionar uma imagem do prêmio</p>
+              <small>PNG, JPG até 5MB</small>
+            </div>
+
+            <input
+              ref="fileInput"
+              type="file"
+              accept="image/*"
+              @change="handleImageUpload"
+              class="file-input-hidden"
+            />
           </div>
         </div>
 
-        <!-- Status da Rifa -->
-        <div class="content-card">
-          <div class="card-header">
-            <h2>Status da Rifa</h2>
-          </div>
-          <div class="status-section">
-            <div class="current-status">
-              <span class="status-label">Status Atual:</span>
-              <span :class="['status-badge', form.status]">
-                {{ getStatusText(form.status) }}
-              </span>
-            </div>
-            <div class="status-actions">
-              <button 
-                v-if="form.status === 'rascunho'"
-                @click="publicarRifa"
-                type="button"
-                class="btn btn-success"
-              >
-                🚀 Publicar Rifa
-              </button>
-              <button 
-                v-if="form.status === 'ativo'"
-                @click="pausarRifa"
-                type="button"
-                class="btn btn-warning"
-              >
-                ⏸️ Pausar Rifa
-              </button>
-              <button 
-                v-if="form.status === 'pausado'"
-                @click="ativarRifa"
-                type="button"
-                class="btn btn-success"
-              >
-                ▶️ Ativar Rifa
-              </button>
-              <button 
-                v-if="['rascunho', 'pausado'].includes(form.status)"
-                @click="cancelarRifa"
-                type="button"
-                class="btn btn-danger"
-              >
-                🗑️ Cancelar Rifa
-              </button>
+        <!-- 3. Configurações do Sorteio -->
+        <div class="form-section">
+          <div class="section-header">
+            <h2>🎯 Configurações do Sorteio</h2>
+            <div v-if="temVendas" class="lock-warning">
+              🔒 Bloqueado devido às vendas existentes
             </div>
           </div>
-        </div>
-
-        <!-- Configurações do Sorteio -->
-        <div class="content-card">
-          <div class="card-header">
-            <h2>Configurações do Sorteio</h2>
-            <span v-if="temVendas" class="warning-text">
-              ⚠️ Alguns campos não podem ser alterados pois já existem vendas
-            </span>
-          </div>
+          
           <div class="form-grid">
-            <div class="form-group">
-              <label for="valorPremio">Valor do Prêmio *</label>
-              <div class="input-with-prefix">
-                <span class="prefix">R$</span>
-                <input
-                  id="valorPremio"
-                  v-model="form.valorPremio"
-                  type="number"
-                  step="0.01"
-                  placeholder="0,00"
-                  required
-                  class="form-input"
-                  :disabled="temVendas"
-                />
-              </div>
-            </div>
-
             <div class="form-group">
               <label for="valorNumero">Valor por Número *</label>
               <div class="input-with-prefix">
@@ -166,12 +174,15 @@
                   v-model="form.valorNumero"
                   type="number"
                   step="0.01"
-                  placeholder="0,00"
+                  min="0.01"
+                  placeholder="25,00"
                   required
                   class="form-input"
+                  :class="{ 'error': errors.valorNumero }"
                   :disabled="temVendas"
                 />
               </div>
+              <div v-if="errors.valorNumero" class="field-error">{{ errors.valorNumero }}</div>
             </div>
 
             <div class="form-group">
@@ -185,57 +196,188 @@
                 placeholder="100"
                 required
                 class="form-input"
+                :class="{ 'error': errors.totalNumeros }"
                 :disabled="temVendas"
               />
+              <div v-if="errors.totalNumeros" class="field-error">{{ errors.totalNumeros }}</div>
+              <small class="field-hint">Entre 10 e 10.000 números</small>
             </div>
 
             <div class="form-group">
-              <label for="dataFim">Data de Encerramento *</label>
+              <label for="tipoSorteio">Tipo de Sorteio</label>
+              <select
+                id="tipoSorteio"
+                v-model="form.tipoSorteio"
+                class="form-input"
+                :disabled="temVendas"
+              >
+                <option value="">Selecionar tipo</option>
+                <option value="sorteador_com_br">🌐 Sorteador.com.br</option>
+                <option value="federal_lottery">🎲 Loteria Federal</option>
+                <option value="manual">✋ Sorteio Manual</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="dataFim">Data de Encerramento</label>
               <input
                 id="dataFim"
                 v-model="form.dataFim"
                 type="datetime-local"
-                required
                 class="form-input"
               />
+              <small class="field-hint">Quando as vendas devem parar</small>
+            </div>
+          </div>
+
+          <!-- Resumo financeiro -->
+          <div class="financial-summary">
+            <div class="summary-item">
+              <span class="label">Valor por número:</span>
+              <span class="value">{{ formatCurrency(form.valorNumero) }}</span>
+            </div>
+            <div class="summary-item">
+              <span class="label">Total de números:</span>
+              <span class="value">{{ form.totalNumeros || 0 }}</span>
+            </div>
+            <div class="summary-item total">
+              <span class="label">Faturamento máximo:</span>
+              <span class="value">{{ formatCurrency(faturamentoMaximo) }}</span>
             </div>
           </div>
         </div>
 
-        <!-- Estatísticas -->
-        <div class="content-card stats-card">
-          <div class="card-header">
-            <h2>Estatísticas</h2>
+        <!-- 4. Prêmios Configurados -->
+        <div v-if="form.premios && form.premios.length > 0" class="form-section">
+          <div class="section-header">
+            <h2>🏆 Prêmios Configurados</h2>
           </div>
+          
+          <div class="prizes-list">
+            <div 
+              v-for="(premio, index) in form.premios" 
+              :key="premio.id || index"
+              class="prize-item"
+            >
+              <div class="prize-position">{{ premio.position }}º</div>
+              <div class="prize-info">
+                <h4>{{ premio.name }}</h4>
+                <p v-if="premio.description">{{ premio.description }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. Estatísticas Atuais -->
+        <div class="form-section">
+          <div class="section-header">
+            <h2>📊 Estatísticas Atuais</h2>
+          </div>
+          
           <div class="stats-grid">
-            <div class="stat-item">
-              <span class="stat-number">{{ form.numerosVendidos || 0 }}</span>
-              <span class="stat-label">Números Vendidos</span>
+            <div class="stat-card">
+              <div class="stat-icon">🎯</div>
+              <div class="stat-info">
+                <div class="stat-number">{{ form.numerosVendidos || 0 }}</div>
+                <div class="stat-label">Números Vendidos</div>
+              </div>
             </div>
-            <div class="stat-item">
-              <span class="stat-number">{{ Math.round(form.percentualVendido || 0) }}%</span>
-              <span class="stat-label">Progresso</span>
+            
+            <div class="stat-card">
+              <div class="stat-icon">📈</div>
+              <div class="stat-info">
+                <div class="stat-number">{{ Math.round(form.percentualVendido || 0) }}%</div>
+                <div class="stat-label">Progresso</div>
+              </div>
             </div>
-            <div class="stat-item">
-              <span class="stat-number">{{ formatCurrency(form.faturamento || 0) }}</span>
-              <span class="stat-label">Faturamento</span>
+            
+            <div class="stat-card">
+              <div class="stat-icon">💰</div>
+              <div class="stat-info">
+                <div class="stat-number">{{ formatCurrency(form.faturamento || 0) }}</div>
+                <div class="stat-label">Faturamento</div>
+              </div>
             </div>
-            <div class="stat-item">
-              <span class="stat-number">{{ formatCurrency(lucroAtual) }}</span>
-              <span class="stat-label">Lucro Atual</span>
+            
+            <div class="stat-card">
+              <div class="stat-icon">📅</div>
+              <div class="stat-info">
+                <div class="stat-number">{{ formatDate(form.createdAt) }}</div>
+                <div class="stat-label">Criada em</div>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Botões de Ação -->
+        <!-- Ações do formulário -->
         <div class="form-actions">
-          <button type="button" @click="$router.go(-1)" class="btn btn-outline">
-            ← Cancelar
-          </button>
-          <button type="submit" class="btn btn-primary" :disabled="isSaving">
-            <span v-if="isSaving">⏳ Salvando...</span>
-            <span v-else>💾 Salvar Alterações</span>
-          </button>
+          <div class="actions-left">
+            <!-- ✅ CORRETO: Cancelar volta para gerenciar -->
+            <router-link :to="`/rifas/${$route.params.id}`" class="btn btn-outline">
+              ← Cancelar
+            </router-link>
+          </div>
+          
+          <div class="actions-right">
+            <button type="button" @click="previewChanges" class="btn btn-secondary">
+              👁️ Visualizar
+            </button>
+            <button type="submit" class="btn btn-primary" :disabled="isSaving || !isFormValid">
+              <span v-if="isSaving">
+                <div class="loading-spinner-small"></div>
+                Salvando...
+              </span>
+              <span v-else>💾 Salvar Alterações</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Ações avançadas -->
+        <div class="advanced-actions">
+          <div class="action-group">
+            <h3>Ações de Status</h3>
+            <div class="status-buttons">
+              <button 
+                v-if="form.status === 'draft'"
+                type="button"
+                @click="updateStatus('active')"
+                class="btn btn-success"
+                :disabled="isUpdatingStatus"
+              >
+                🚀 Publicar Rifa
+              </button>
+              
+              <button 
+                v-if="form.status === 'active'"
+                type="button"
+                @click="updateStatus('paused')"
+                class="btn btn-warning"
+                :disabled="isUpdatingStatus"
+              >
+                ⏸️ Pausar Rifa
+              </button>
+              
+              <button 
+                v-if="form.status === 'paused'"
+                type="button"
+                @click="updateStatus('active')"
+                class="btn btn-success"
+                :disabled="isUpdatingStatus"
+              >
+                ▶️ Reativar Rifa
+              </button>
+              
+              <button 
+                v-if="!['finished', 'cancelled'].includes(form.status)"
+                type="button"
+                @click="updateStatus('cancelled')"
+                class="btn btn-danger"
+                :disabled="isUpdatingStatus"
+              >
+                🗑️ Cancelar Rifa
+              </button>
+            </div>
+          </div>
         </div>
       </form>
     </div>
@@ -245,7 +387,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { rifasAPI, getRifaImageUrl, handleImageError } from '@/service/api'
+import { rifasAPI } from '@/service/api'
 import { useMessage } from '@/composables/message'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 
@@ -253,136 +395,75 @@ const route = useRoute()
 const router = useRouter()
 const { showMessage } = useMessage()
 
+// Estados
 const isLoading = ref(true)
 const isSaving = ref(false)
-const temVendas = ref(false)
+const isUpdatingStatus = ref(false)
+const loadError = ref('')
+const errors = ref({})
 
+// Dados do formulário
 const form = ref({
   id: null,
   titulo: '',
   descricao: '',
-  imagem: null,
-  imagemPreview: null,
-  valorPremio: '',
-  valorNumero: '',
-  totalNumeros: '',
+  telefoneContato: '',
+  categoria: '',
+  valorNumero: 0,
+  totalNumeros: 0,
+  tipoSorteio: '',
   dataFim: '',
-  status: 'rascunho',
+  imagemPreview: null,
+  imagemNova: null,
+  status: 'draft',
   numerosVendidos: 0,
   percentualVendido: 0,
-  faturamento: 0
+  faturamento: 0,
+  premios: [],
+  createdAt: null
 })
 
-const lucroAtual = computed(() => {
-  const faturamento = parseFloat(form.value.faturamento || 0)
-  const premio = parseFloat(form.value.valorPremio || 0)
-  return faturamento - premio
+// Computed properties
+const temVendas = computed(() => (form.value.numerosVendidos || 0) > 0)
+
+const faturamentoMaximo = computed(() => {
+  const valor = parseFloat(form.value.valorNumero) || 0
+  const total = parseInt(form.value.totalNumeros) || 0
+  return valor * total
 })
 
+const isFormValid = computed(() => {
+  return form.value.titulo?.trim() &&
+         form.value.descricao?.trim() &&
+         form.value.valorNumero > 0 &&
+         form.value.totalNumeros > 0 &&
+         Object.keys(errors.value).length === 0
+})
+
+// Funções utilitárias
 const formatCurrency = (value) => {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL'
-  }).format(value)
+  }).format(value || 0)
+}
+
+const formatDate = (dateString) => {
+  if (!dateString) return 'Não definida'
+  return new Date(dateString).toLocaleDateString('pt-BR')
 }
 
 const getStatusText = (status) => {
   const statusMap = {
-    rascunho: 'Rascunho',
     draft: 'Rascunho',
-    ativo: 'Ativa',
     active: 'Ativa',
-    pausado: 'Pausada',
     paused: 'Pausada',
-    finalizado: 'Finalizada',
     finished: 'Finalizada',
-    cancelado: 'Cancelada',
-    cancelled: 'Cancelada',
-    pending: 'Pendente'
+    cancelled: 'Cancelada'
   }
   return statusMap[status] || status
 }
 
-// ✅ CORRIGIDO: Carregar dados reais da API
-const carregarRifa = async () => {
-  try {
-    isLoading.value = true
-    const rifaId = route.params.id
-    
-    console.log('🎯 Carregando dados da rifa:', rifaId)
-    
-    // Fazer requisição real para a API
-    const response = await rifasAPI.get(rifaId)
-    
-    console.log('📥 Resposta da API:', response.data)
-    
-    let rifaData = null
-    
-    // Processar diferentes formatos de resposta
-    if (response.data?.success) {
-      rifaData = response.data.data || response.data.raffle
-    } else if (response.data?.data) {
-      rifaData = response.data.data
-    } else {
-      rifaData = response.data
-    }
-    
-    if (!rifaData) {
-      throw new Error('Dados da rifa não encontrados')
-    }
-    
-    console.log('✅ Dados da rifa processados:', rifaData)
-    
-    // ✅ USAR a função getRifaImageUrl para obter a URL da imagem
-    const imageUrl = getRifaImageUrl(rifaData)
-    
-    // Mapear dados da API para o formulário
-    form.value = {
-      id: rifaData.id,
-      titulo: rifaData.title || rifaData.titulo || '',
-      descricao: rifaData.description || rifaData.descricao || '',
-      imagem: null,
-      imagemPreview: imageUrl, // ✅ Usar a URL gerada pela função
-      valorPremio: rifaData.totalPrize || rifaData.valorPremio || calculateTotalPrize(rifaData) || 0,
-      valorNumero: rifaData.ticketPrice || rifaData.valorNumero || 0,
-      totalNumeros: rifaData.totalTickets || rifaData.totalNumeros || 0,
-      dataFim: formatDateForInput(rifaData.endDate || rifaData.dataFim) || '',
-      status: rifaData.status || 'rascunho',
-      numerosVendidos: rifaData.soldTickets || rifaData.numerosVendidos || 0,
-      percentualVendido: rifaData.progress || rifaData.percentualVendido || 0,
-      faturamento: rifaData.revenue || rifaData.faturamento || 0
-    }
-    
-    // Verificar se já tem vendas
-    temVendas.value = (rifaData.soldTickets || rifaData.numerosVendidos || 0) > 0
-    
-    console.log('✅ Formulário preenchido:', form.value)
-    
-  } catch (error) {
-    console.error('💥 Erro ao carregar rifa:', error)
-    
-    if (error.response?.status === 404) {
-      showMessage('Rifa não encontrada', 'error')
-    } else if (error.response?.status === 403) {
-      showMessage('Você não tem permissão para editar esta rifa', 'error')
-    } else {
-      showMessage('Erro ao carregar dados da rifa: ' + (error.message || 'Erro desconhecido'), 'error')
-    }
-    
-    router.push('/rifas')
-  } finally {
-    isLoading.value = false
-  }
-}
-
-// ✅ Função auxiliar para calcular prêmio total
-const calculateTotalPrize = (rifa) => {
-  const ticketPrice = rifa.ticketPrice || rifa.valorNumero || 0
-  const totalTickets = rifa.totalTickets || rifa.totalNumeros || 0
-  return ticketPrice * totalTickets
-}
-
-// ✅ Função auxiliar para formatar data para input datetime-local
 const formatDateForInput = (dateString) => {
   if (!dateString) return ''
   
@@ -390,7 +471,6 @@ const formatDateForInput = (dateString) => {
     const date = new Date(dateString)
     if (isNaN(date.getTime())) return ''
     
-    // Formato: YYYY-MM-DDTHH:MM
     const year = date.getFullYear()
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const day = String(date.getDate()).padStart(2, '0')
@@ -399,31 +479,174 @@ const formatDateForInput = (dateString) => {
     
     return `${year}-${month}-${day}T${hours}:${minutes}`
   } catch (error) {
-    console.warn('Erro ao formatar data:', error)
     return ''
   }
 }
 
-// ✅ CORRIGIDO: Salvar com dados reais
+// Carregar dados da rifa
+const carregarRifa = async () => {
+  try {
+    isLoading.value = true
+    loadError.value = ''
+    const rifaId = route.params.id
+    
+    console.log('🎯 Carregando rifa para edição:', rifaId)
+    
+    const response = await rifasAPI.get(rifaId)
+    console.log('📥 Resposta da API:', response.data)
+    
+    let rifaData = null
+    
+    // Processar resposta da API
+    if (response.data?.success && response.data.data?.raffle) {
+      rifaData = response.data.data.raffle
+    } else if (response.data?.success && response.data.data) {
+      rifaData = response.data.data
+    } else if (response.data?.id) {
+      rifaData = response.data
+    }
+    
+    if (!rifaData?.id) {
+      throw new Error('Dados da rifa não encontrados')
+    }
+    
+    console.log('✅ Dados da rifa:', rifaData)
+    
+    // Mapear dados para o formulário
+    form.value = {
+      id: rifaData.id,
+      titulo: rifaData.title || '',
+      descricao: rifaData.description || '',
+      telefoneContato: rifaData.publicContactPhone || '',
+      categoria: rifaData.category || '',
+      valorNumero: rifaData.ticketPrice || 0,
+      totalNumeros: rifaData.totalTickets || 0,
+      tipoSorteio: rifaData.drawType || '',
+      dataFim: formatDateForInput(rifaData.drawDate || rifaData.endDate),
+      imagemPreview: getImageUrl(rifaData),
+      imagemNova: null,
+      status: rifaData.status || 'draft',
+      numerosVendidos: rifaData.soldTickets || 0,
+      percentualVendido: rifaData.progress || 0,
+      faturamento: rifaData.revenue || 0,
+      premios: rifaData.prizes || [],
+      createdAt: rifaData.createdAt
+    }
+    
+    console.log('✅ Formulário preenchido:', form.value)
+    
+  } catch (error) {
+    console.error('💥 Erro ao carregar rifa:', error)
+    loadError.value = error.message || 'Erro ao carregar dados da rifa'
+    
+    if (error.response?.status === 404) {
+      loadError.value = 'Rifa não encontrada'
+    } else if (error.response?.status === 403) {
+      loadError.value = 'Você não tem permissão para editar esta rifa'
+    }
+  } finally {
+    isLoading.value = false
+  }
+}
+
+const getImageUrl = (rifaData) => {
+  if (rifaData.campaignImages && rifaData.campaignImages.length > 0) {
+    const imageUrl = rifaData.campaignImages[0]
+    if (imageUrl.startsWith('http')) {
+      return imageUrl
+    } else {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
+      return `${baseUrl}${imageUrl}`
+    }
+  }
+  return null
+}
+
+// Manipulação de imagem
+const handleImageUpload = (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+  
+  if (!file.type.startsWith('image/')) {
+    showMessage('Apenas arquivos de imagem são permitidos', 'error')
+    return
+  }
+  
+  if (file.size > 5 * 1024 * 1024) {
+    showMessage('Arquivo muito grande. Máximo 5MB', 'error')
+    return
+  }
+  
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    form.value.imagemNova = file
+    form.value.imagemPreview = e.target.result
+  }
+  reader.readAsDataURL(file)
+}
+
+const removeImage = () => {
+  form.value.imagemNova = null
+  form.value.imagemPreview = null
+}
+
+// Validação
+const validateForm = () => {
+  errors.value = {}
+  
+  if (!form.value.titulo?.trim()) {
+    errors.value.titulo = 'Título é obrigatório'
+  }
+  
+  if (!form.value.descricao?.trim()) {
+    errors.value.descricao = 'Descrição é obrigatória'
+  } else if (form.value.descricao.length < 10) {
+    errors.value.descricao = 'Descrição deve ter pelo menos 10 caracteres'
+  }
+  
+  if (!form.value.valorNumero || form.value.valorNumero <= 0) {
+    errors.value.valorNumero = 'Valor deve ser maior que zero'
+  }
+  
+  if (!form.value.totalNumeros || form.value.totalNumeros < 10) {
+    errors.value.totalNumeros = 'Mínimo de 10 números'
+  }
+  
+  return Object.keys(errors.value).length === 0
+}
+
+// Salvar alterações
 const salvarRifa = async () => {
   try {
+    if (!validateForm()) {
+      showMessage('Por favor, corrija os erros no formulário', 'error')
+      return
+    }
+    
     isSaving.value = true
     
     // Preparar dados para envio
     const dadosParaEnvio = {
       title: form.value.titulo,
       description: form.value.descricao,
-      ticketPrice: parseFloat(form.value.valorNumero) || 0,
-      totalTickets: parseInt(form.value.totalNumeros) || 0,
-      endDate: form.value.dataFim ? new Date(form.value.dataFim).toISOString() : null
+      publicContactPhone: form.value.telefoneContato,
+      category: form.value.categoria,
+      ticketPrice: parseFloat(form.value.valorNumero),
+      totalTickets: parseInt(form.value.totalNumeros),
+      drawType: form.value.tipoSorteio
     }
     
-    // Se há imagem nova, incluir no FormData
-    if (form.value.imagem) {
+    if (form.value.dataFim) {
+      dadosParaEnvio.drawDate = new Date(form.value.dataFim).toISOString()
+    }
+    
+    console.log('💾 Salvando alterações:', dadosParaEnvio)
+    
+    // Se há imagem nova, usar FormData
+    if (form.value.imagemNova) {
       const formData = new FormData()
-      formData.append('image', form.value.imagem)
+      formData.append('image', form.value.imagemNova)
       
-      // Adicionar outros campos
       Object.keys(dadosParaEnvio).forEach(key => {
         if (dadosParaEnvio[key] !== null && dadosParaEnvio[key] !== undefined) {
           formData.append(key, dadosParaEnvio[key])
@@ -432,118 +655,97 @@ const salvarRifa = async () => {
       
       await rifasAPI.update(form.value.id, formData)
     } else {
-      // Sem imagem, usar JSON
       await rifasAPI.update(form.value.id, dadosParaEnvio)
     }
     
-    showMessage('Rifa atualizada com sucesso!', 'success')
+    showMessage('✅ Rifa atualizada com sucesso!', 'success')
     
     // Recarregar dados
     await carregarRifa()
     
   } catch (error) {
-    console.error('💥 Erro ao salvar rifa:', error)
-    
+    console.error('💥 Erro ao salvar:', error)
     const errorMessage = error.response?.data?.message || error.message || 'Erro ao salvar rifa'
-    showMessage(errorMessage, 'error')
+    showMessage('❌ ' + errorMessage, 'error')
   } finally {
     isSaving.value = false
   }
 }
 
-// ✅ CORRIGIDO: Usar métodos da API
-const publicarRifa = async () => {
-  const confirmacao = confirm('Tem certeza que deseja publicar esta rifa? Ela ficará disponível para vendas.')
-  if (confirmacao) {
-    try {
-      await rifasAPI.updateStatus(form.value.id, 'active')
-      form.value.status = 'active'
-      showMessage('Rifa publicada com sucesso!', 'success')
-    } catch (error) {
-      console.error('Erro ao publicar rifa:', error)
-      showMessage('Erro ao publicar rifa: ' + (error.message || 'Erro desconhecido'), 'error')
-    }
+// Atualizar status
+const updateStatus = async (novoStatus) => {
+  const confirmacoes = {
+    active: 'Tem certeza que deseja ATIVAR esta rifa? Ela ficará disponível para vendas.',
+    paused: 'Tem certeza que deseja PAUSAR esta rifa? As vendas serão interrompidas.',
+    cancelled: 'ATENÇÃO: Tem certeza que deseja CANCELAR esta rifa? Esta ação não pode ser desfeita!'
   }
-}
-
-const pausarRifa = async () => {
-  const confirmacao = confirm('Tem certeza que deseja pausar esta rifa? As vendas serão interrompidas.')
-  if (confirmacao) {
-    try {
-      await rifasAPI.updateStatus(form.value.id, 'paused')
-      form.value.status = 'paused'
-      showMessage('Rifa pausada com sucesso!', 'success')
-    } catch (error) {
-      console.error('Erro ao pausar rifa:', error)
-      showMessage('Erro ao pausar rifa: ' + (error.message || 'Erro desconhecido'), 'error')
-    }
+  
+  if (!confirm(confirmacoes[novoStatus] || `Alterar status para ${getStatusText(novoStatus)}?`)) {
+    return
   }
-}
-
-const ativarRifa = async () => {
+  
   try {
-    await rifasAPI.updateStatus(form.value.id, 'active')
-    form.value.status = 'active'
-    showMessage('Rifa ativada com sucesso!', 'success')
-  } catch (error) {
-    console.error('Erro ao ativar rifa:', error)
-    showMessage('Erro ao ativar rifa: ' + (error.message || 'Erro desconhecido'), 'error')
-  }
-}
-
-const cancelarRifa = async () => {
-  const confirmacao = confirm('ATENÇÃO: Tem certeza que deseja CANCELAR esta rifa? Esta ação não pode ser desfeita!')
-  if (confirmacao) {
-    try {
-      await rifasAPI.updateStatus(form.value.id, 'cancelled')
-      form.value.status = 'cancelled'
-      showMessage('Rifa cancelada', 'warning')
-    } catch (error) {
-      console.error('Erro ao cancelar rifa:', error)
-      showMessage('Erro ao cancelar rifa: ' + (error.message || 'Erro desconhecido'), 'error')
+    isUpdatingStatus.value = true
+    
+    await rifasAPI.updateStatus(form.value.id, novoStatus)
+    form.value.status = novoStatus
+    
+    const mensagens = {
+      active: '🚀 Rifa ativada com sucesso!',
+      paused: '⏸️ Rifa pausada com sucesso!',
+      cancelled: '🗑️ Rifa cancelada'
     }
+    
+    showMessage(mensagens[novoStatus] || 'Status atualizado!', 'success')
+    
+  } catch (error) {
+    console.error('💥 Erro ao atualizar status:', error)
+    showMessage('❌ Erro ao atualizar status: ' + (error.message || 'Erro desconhecido'), 'error')
+  } finally {
+    isUpdatingStatus.value = false
   }
 }
 
+// Preview das alterações
+const previewChanges = () => {
+  showMessage('Funcionalidade de preview em desenvolvimento', 'info')
+}
+
+// Carregar dados ao montar
 onMounted(() => {
   carregarRifa()
-})
-
-// ✅ EXPOR a função handleImageError para o template
-defineExpose({
-  handleImageError
 })
 </script>
 
 <style scoped>
 .editar-rifa {
-  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
 }
 
-/* Usando o mesmo padrão das outras views */
+/* Header */
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
-  background: white;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
   padding: 2rem;
   border-radius: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-  border: 1px solid #f1f3f4;
+  margin-bottom: 2rem;
+  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
 }
 
 .header-content h1 {
-  color: #1a1d29;
-  margin-bottom: 0.5rem;
+  margin: 0 0 0.5rem 0;
   font-size: 2rem;
   font-weight: 700;
 }
 
 .header-content p {
-  color: #64748b;
   margin: 0;
-  font-size: 1rem;
+  opacity: 0.9;
 }
 
 .header-actions {
@@ -551,12 +753,433 @@ defineExpose({
   gap: 1rem;
 }
 
+/* Loading e Error */
+.loading-container,
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f1f3f4;
+  border-top: 3px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+.error-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.error-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+/* Status Card */
+.status-card {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  border-left: 4px solid #667eea;
+}
+
+.status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.status-header h3 {
+  margin: 0;
+  color: #1a1d29;
+}
+
+.status-badge {
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.status-badge.draft { background: #f3f4f6; color: #374151; }
+.status-badge.active { background: #dcfce7; color: #166534; }
+.status-badge.paused { background: #fef3c7; color: #92400e; }
+.status-badge.finished { background: #dbeafe; color: #1e40af; }
+.status-badge.cancelled { background: #fee2e2; color: #dc2626; }
+
+.status-warning {
+  display: flex;
+  gap: 1rem;
+  background: #fef3c7;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid #f59e0b;
+}
+
+.warning-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+/* Form Sections */
+.form-section {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #f1f3f4;
+}
+
+.section-header h2 {
+  margin: 0;
+  color: #1a1d29;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.lock-warning {
+  color: #92400e;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: #fef3c7;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+}
+
+/* Form Grid */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.form-input {
+  padding: 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-input:disabled {
+  background: #f9fafb;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.form-input.error {
+  border-color: #ef4444;
+}
+
+.input-with-prefix {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.prefix {
+  position: absolute;
+  left: 1rem;
+  color: #6b7280;
+  font-weight: 600;
+  z-index: 1;
+}
+
+.input-with-prefix .form-input {
+  padding-left: 3rem;
+}
+
+.field-error {
+  color: #ef4444;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  font-weight: 500;
+}
+
+.field-hint {
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+/* Image Upload */
+.image-upload-container {
+  max-width: 400px;
+}
+
+.current-image {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.current-image img {
+  width: 100%;
+  height: 250px;
+  object-fit: cover;
+}
+
+.image-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.current-image:hover .image-overlay {
+  opacity: 1;
+}
+
+.remove-btn,
+.change-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.remove-btn {
+  background: #ef4444;
+  color: white;
+}
+
+.change-btn {
+  background: #667eea;
+  color: white;
+}
+
+.upload-placeholder {
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 3rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.upload-placeholder:hover {
+  border-color: #667eea;
+  background: #f8faff;
+}
+
+.upload-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.file-input-hidden {
+  display: none;
+}
+
+/* Financial Summary */
+.financial-summary {
+  background: #f8faff;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+}
+
+.summary-item.total {
+  border-top: 2px solid #d1d5db;
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.summary-item .label {
+  color: #6b7280;
+}
+
+.summary-item .value {
+  color: #1a1d29;
+  font-weight: 600;
+}
+
+/* Prizes */
+.prizes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.prize-item {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f8faff;
+  border-radius: 12px;
+  border-left: 4px solid #667eea;
+}
+
+.prize-position {
+  width: 40px;
+  height: 40px;
+  background: #667eea;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.prize-info h4 {
+  margin: 0 0 0.5rem 0;
+  color: #1a1d29;
+}
+
+.prize-info p {
+  margin: 0;
+  color: #6b7280;
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.stat-card {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: #f8faff;
+  border-radius: 12px;
+  border-left: 4px solid #667eea;
+}
+
+.stat-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.stat-number {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a1d29;
+  margin-bottom: 0.25rem;
+}
+
+.stat-label {
+  color: #6b7280;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* Form Actions */
+.form-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  padding: 2rem;
+  border-radius: 16px;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.actions-left,
+.actions-right {
+  display: flex;
+  gap: 1rem;
+}
+
+/* Advanced Actions */
+.advanced-actions {
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.action-group h3 {
+  margin: 0 0 1rem 0;
+  color: #1a1d29;
+}
+
+.status-buttons {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* Buttons */
 .btn {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1.5rem;
-  border-radius: 12px;
+  border-radius: 10px;
   text-decoration: none;
   font-weight: 600;
   border: none;
@@ -584,10 +1207,21 @@ defineExpose({
   box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
 }
 
+.btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+  border: 2px solid #d1d5db;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #e5e7eb;
+  transform: translateY(-1px);
+}
+
 .btn-outline {
   background: white;
   color: #667eea;
-  border: 1px solid #667eea;
+  border: 2px solid #667eea;
 }
 
 .btn-outline:hover:not(:disabled) {
@@ -596,421 +1230,88 @@ defineExpose({
   transform: translateY(-1px);
 }
 
-.btn-secondary {
-  background: #6c757d;
-  color: white;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #5a6268;
-  transform: translateY(-1px);
-}
-
 .btn-success {
-  background: #28a745;
+  background: #22c55e;
   color: white;
 }
 
 .btn-success:hover:not(:disabled) {
-  background: #218838;
+  background: #16a34a;
   transform: translateY(-1px);
 }
 
 .btn-warning {
-  background: #ffc107;
-  color: #212529;
+  background: #f59e0b;
+  color: white;
 }
 
 .btn-warning:hover:not(:disabled) {
-  background: #e0a800;
+  background: #d97706;
   transform: translateY(-1px);
 }
 
 .btn-danger {
-  background: #dc3545;
+  background: #ef4444;
   color: white;
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #c82333;
+  background: #dc2626;
   transform: translateY(-1px);
 }
 
-.loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem 0;
-  color: #64748b;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-}
-
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid #f1f3f4;
-  border-top: 3px solid #667eea;
+/* Loading Spinner */
+.loading-spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid currentColor;
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  margin-bottom: 1rem;
+  margin-right: 0.5rem;
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
-.content-card {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-  border: 1px solid #f1f3f4;
-  margin-bottom: 2rem;
-}
-
-.card-header {
-  padding: 2rem 2rem 0 2rem;
-  margin-bottom: 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.card-header h2 {
-  color: #1a1d29;
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 0;
-}
-
-.warning-text {
-  color: #f59e0b;
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.5rem;
-  padding: 0 2rem 2rem;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-group label {
-  color: #374151;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  font-size: 0.9rem;
-}
-
-.form-input {
-  padding: 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  transition: all 0.2s ease;
-  background: white;
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
-
-.form-input:disabled {
-  background: #f9fafb;
-  color: #6b7280;
-  cursor: not-allowed;
-}
-
-.input-with-prefix {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.prefix {
-  position: absolute;
-  left: 0.75rem;
-  color: #6b7280;
-  font-weight: 600;
-  z-index: 1;
-}
-
-.input-with-prefix .form-input {
-  padding-left: 2.5rem;
-}
-
-.image-upload {
-  width: 100%;
-}
-
-.file-input {
-  display: none;
-}
-
-.upload-area {
-  border: 2px dashed #d1d5db;
-  border-radius: 8px;
-  padding: 2rem;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  min-height: 200px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-}
-
-.upload-area:hover {
-  border-color: #667eea;
-  background: #f8faff;
-}
-
-.image-preview {
-  width: 100%;
-  height: 200px;
-  border-radius: 8px;
-  overflow: hidden;
-  position: relative;
-}
-
-.image-preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.remove-image {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background: rgba(220, 38, 38, 0.9);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 30px;
-  height: 30px;
-  cursor: pointer;
-  font-size: 0.8rem;
-}
-
-.upload-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.upload-icon {
-  font-size: 3rem;
-  opacity: 0.5;
-}
-
-.upload-placeholder p {
-  color: #374151;
-  font-weight: 600;
-  margin: 0;
-}
-
-.upload-placeholder small {
-  color: #6b7280;
-}
-
-.status-section {
-  padding: 0 2rem 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 2rem;
-}
-
-.current-status {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.status-label {
-  font-weight: 600;
-  color: #374151;
-}
-
-.status-badge {
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.status-badge.rascunho {
-  background: #f3f4f6;
-  color: #374151;
-}
-
-.status-badge.ativo {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.status-badge.pausado {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.status-badge.finalizado {
-  background: #dbeafe;
-  color: #1e40af;
-}
-
-.status-badge.cancelado {
-  background: #fee2e2;
-  color: #dc2626;
-}
-
-.status-actions {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.stats-card {
-  background: linear-gradient(135deg, #f8faff 0%, #f0f7ff 100%);
-  border: 1px solid #e0e7ff;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  padding: 0 2rem 2rem;
-}
-
-.stat-item {
-  text-align: center;
-  padding: 1.5rem;
-  background: white;
-  border-radius: 12px;
-  border: 1px solid #e0e7ff;
-}
-
-.stat-number {
-  display: block;
-  font-size: 2rem;
-  font-weight: 700;
-  color: #1a1d29;
-  margin-bottom: 0.5rem;
-}
-
-.stat-label {
-  color: #64748b;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.form-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-  padding: 2rem;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-  border: 1px solid #f1f3f4;
-}
-
+/* Responsive */
 @media (max-width: 768px) {
+  .editar-rifa {
+    padding: 0.5rem;
+  }
+  
   .page-header {
-    flex-direction: column;
-    gap: 1.5rem;
-    text-align: center;
-    padding: 1.5rem;
-  }
-  
-  .header-content h1 {
-    font-size: 1.75rem;
-  }
-  
-  .header-actions {
-    flex-direction: column;
-    width: 100%;
-  }
-  
-  .form-grid {
-    grid-template-columns: 1fr;
-    padding: 0 1.5rem 1.5rem;
-  }
-  
-  .card-header {
-    padding: 1.5rem 1.5rem 0 1.5rem;
     flex-direction: column;
     gap: 1rem;
     text-align: center;
   }
   
-  .status-section {
-    flex-direction: column;
-    gap: 1.5rem;
-    padding: 0 1.5rem 1.5rem;
+  .header-actions {
+    justify-content: center;
   }
   
-  .status-actions {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .actions-left,
+  .actions-right {
+    justify-content: center;
+    width: 100%;
+  }
+  
+  .status-buttons {
     justify-content: center;
   }
   
   .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-    padding: 0 1.5rem 1.5rem;
-  }
-  
-  .form-actions {
-    flex-direction: column;
-    padding: 1.5rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .page-header {
-    padding: 1rem;
-  }
-  
-  .form-grid {
-    padding: 0 1rem 1rem;
-  }
-  
-  .card-header {
-    padding: 1rem 1rem 0 1rem;
-  }
-  
-  .status-section {
-    padding: 0 1rem 1rem;
-  }
-  
-  .stats-grid {
     grid-template-columns: 1fr;
-    padding: 0 1rem 1rem;
-  }
-  
-  .form-actions {
-    padding: 1rem;
-  }
-  
-  .status-actions {
-    flex-direction: column;
-    width: 100%;
   }
 }
 </style>
