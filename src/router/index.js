@@ -24,21 +24,24 @@ const routes = [
     component: () => import('@/views/CriarRifa.vue'),
     meta: { requiresAuth: true }
   },
-  // ✅ NOVA ESTRUTURA: Gerenciar como rota principal da rifa
   {
     path: '/rifas/:id',
     name: 'GerenciarRifa',
     component: () => import('@/views/GerenciarRifa.vue'),
     meta: { requiresAuth: true }
   },
-  // ✅ NOVA ESTRUTURA: Editar como sub-rota
   {
     path: '/rifas/:id/editar',
     name: 'EditarRifa',
     component: () => import('@/views/EditarRifa.vue'),
     meta: { requiresAuth: true }
   },
-  // ✅ REMOVER: Rota de detalhes duplicada não é mais necessária
+  {
+    path: '/vendas',
+    name: 'Vendas',
+    component: () => import('@/views/Vendas.vue'),
+    meta: { requiresAuth: true }
+  },
   {
     path: '/dashboard',
     name: 'Dashboard',

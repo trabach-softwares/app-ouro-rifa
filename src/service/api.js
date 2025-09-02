@@ -382,45 +382,6 @@ export const reportsAPI = {
     }
   },
 
-  getSales: async (params = {}) => {
-    try {
-      const queryParams = new URLSearchParams()
-      
-      if (params.page) queryParams.append('page', params.page)
-      if (params.limit) queryParams.append('limit', params.limit)
-      if (params.status) queryParams.append('status', params.status)
-      if (params.raffleId) queryParams.append('raffleId', params.raffleId)
-      if (params.sort) queryParams.append('sort', params.sort)
-      if (params.order) queryParams.append('order', params.order)
-      if (params.startDate) queryParams.append('startDate', params.startDate)
-      if (params.endDate) queryParams.append('endDate', params.endDate)
-      
-      const url = `/reports/sales${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
-      
-      console.log('📊 REPORTS: Carregando vendas...', url)
-      const response = await api.get(url)
-      console.log('📥 REPORTS: Vendas carregadas:', response.data)
-      return response
-    } catch (error) {
-      console.error('💥 REPORTS: Erro ao carregar vendas:', error)
-      throw new Error(error.response?.data?.message || 'Erro ao carregar relatório de vendas')
-    }
-  },
-
-  // ✅ NOVO: Atualizar status de venda
-  updateSaleStatus: async (saleId, status) => {
-    try {
-      console.log('🔄 REPORTS: Atualizando status da venda...', { saleId, status })
-      
-      const response = await api.patch(`/reports/sales/${saleId}/status`, { status })
-      console.log('✅ REPORTS: Status da venda atualizado:', response.data)
-      return response
-    } catch (error) {
-      console.error('💥 REPORTS: Erro ao atualizar status da venda:', error)
-      throw new Error(error.response?.data?.message || 'Erro ao atualizar status da venda')
-    }
-  },
-
   getRevenue: async (period = 'monthly') => {
     try {
       return await api.get(`/reports/revenue?period=${period}`)
@@ -698,83 +659,32 @@ export const handleImageError = (event) => {
 // ✅ ADICIONAR: Exportar a instância do axios
 export { api }
 
-// ✅ NOVO: API específica para tickets/vendas
+// ✅ CORRIGIDO: API específica para tickets (baseada no novo curl)
 export const ticketsAPI = {
-  // Lista de vendas/tickets
+  // ✅ NOVO: Listar vendas de tickets (endpoint correto)
   getSalesList: async (params = {}) => {
     try {
       const queryParams = new URLSearchParams()
       
+      // ✅ USAR parâmetros conforme o novo curl
       if (params.status) queryParams.append('status', params.status)
-      if (params.raffleId) queryParams.append('raffleId', params.raffleId)
-      if (params.startDate) queryParams.append('startDate', params.startDate)
-      if (params.endDate) queryParams.append('endDate', params.endDate)
       if (params.page) queryParams.append('page', params.page)
       if (params.limit) queryParams.append('limit', params.limit)
-      if (params.sortBy) queryParams.append('sortBy', params.sortBy)
-      if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder)
       
-      const url = `/api/tickets/sales/list${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+      // ✅ USAR ENDPOINT CORRETO: /tickets/sales/list
+      const url = `/tickets/sales/list${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
       
-      console.log('🎫 TICKETS: Carregando vendas...', url)
+      console.log('🎫 TICKETS: Carregando lista de vendas...', url)
       const response = await api.get(url)
-      console.log('📥 TICKETS: Vendas carregadas:', response.data)
+      console.log('📥 TICKETS: Lista de vendas carregada:', response.data)
       return response
     } catch (error) {
-      console.error('💥 TICKETS: Erro ao carregar vendas:', error)
-      throw new Error(error.response?.data?.message || 'Erro ao carregar vendas')
+      console.error('💥 TICKETS: Erro ao carregar lista de vendas:', error)
+      throw new Error(error.response?.data?.message || 'Erro ao carregar lista de vendas')
     }
   },
 
-  // Estatísticas de vendas
-  getSalesStats: async (params = {}) => {
-    try {
-      const queryParams = new URLSearchParams()
-      
-      if (params.raffleId) queryParams.append('raffleId', params.raffleId)
-      if (params.startDate) queryParams.append('startDate', params.startDate)
-      if (params.endDate) queryParams.append('endDate', params.endDate)
-      
-      const url = `/api/tickets/sales/stats${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
-      
-      console.log('📊 TICKETS: Carregando estatísticas...', url)
-      const response = await api.get(url)
-      console.log('📥 TICKETS: Estatísticas carregadas:', response.data)
-      return response
-    } catch (error) {
-      console.error('💥 TICKETS: Erro ao carregar estatísticas:', error)
-      throw new Error(error.response?.data?.message || 'Erro ao carregar estatísticas')
-    }
-  },
-
-  // Detalhes de um ticket específico
-  getTicketDetails: async (ticketId) => {
-    try {
-      console.log('🎫 TICKETS: Carregando detalhes do ticket...', ticketId)
-      const response = await api.get(`/api/tickets/${ticketId}`)
-      console.log('📥 TICKETS: Detalhes carregados:', response.data)
-      return response
-    } catch (error) {
-      console.error('💥 TICKETS: Erro ao carregar detalhes:', error)
-      throw new Error(error.response?.data?.message || 'Erro ao carregar detalhes do ticket')
-    }
-  },
-
-  // Atualizar status de pagamento
-  updatePaymentStatus: async (ticketId, paymentData) => {
-    try {
-      console.log('🔄 TICKETS: Atualizando status de pagamento...', { ticketId, paymentData })
-      
-      const response = await api.put(`/api/tickets/${ticketId}/payment-status`, paymentData)
-      console.log('✅ TICKETS: Status atualizado:', response.data)
-      return response
-    } catch (error) {
-      console.error('💥 TICKETS: Erro ao atualizar status:', error)
-      throw new Error(error.response?.data?.message || 'Erro ao atualizar status do pagamento')
-    }
-  },
-
-  // Tickets de uma rifa específica
+  // ✅ NOVO: Listar tickets por rifa (endpoint alternativo)
   getRaffleTickets: async (raffleId, params = {}) => {
     try {
       const queryParams = new URLSearchParams()
@@ -782,7 +692,7 @@ export const ticketsAPI = {
       if (params.page) queryParams.append('page', params.page)
       if (params.limit) queryParams.append('limit', params.limit)
       
-      const url = `/api/tickets/raffle/${raffleId}/tickets${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+      const url = `/tickets/raffle/${raffleId}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
       
       console.log('🎯 TICKETS: Carregando tickets da rifa...', url)
       const response = await api.get(url)
@@ -794,26 +704,182 @@ export const ticketsAPI = {
     }
   },
 
-  // Relatório de vendas completo (Alternative endpoint)
-  getSalesReport: async (params = {}) => {
+  // Listar todos os tickets do usuário
+  getMyTickets: async (params = {}) => {
+    try {
+      const queryParams = new URLSearchParams()
+      
+      if (params.page) queryParams.append('page', params.page)
+      if (params.limit) queryParams.append('limit', params.limit)
+      if (params.status) queryParams.append('status', params.status)
+      
+      const url = `/tickets${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+      
+      console.log('🎫 TICKETS: Carregando meus tickets...', url)
+      const response = await api.get(url)
+      console.log('📥 TICKETS: Tickets carregados:', response.data)
+      return response
+    } catch (error) {
+      console.error('💥 TICKETS: Erro ao carregar tickets:', error)
+      throw new Error(error.response?.data?.message || 'Erro ao carregar tickets')
+    }
+  },
+
+  // Obter ticket específico por ID
+  getTicketById: async (ticketId) => {
+    try {
+      console.log('🎫 TICKETS: Carregando ticket...', ticketId)
+      const response = await api.get(`/tickets/${ticketId}`)
+      console.log('📥 TICKETS: Ticket carregado:', response.data)
+      return response
+    } catch (error) {
+      console.error('💥 TICKETS: Erro ao carregar ticket:', error)
+      throw new Error(error.response?.data?.message || 'Erro ao carregar ticket')
+    }
+  },
+
+  // Comprar tickets
+  buyTickets: async (ticketData) => {
+    try {
+      console.log('💰 TICKETS: Comprando tickets...', ticketData)
+      const response = await api.post('/tickets', ticketData)
+      console.log('✅ TICKETS: Tickets comprados:', response.data)
+      return response
+    } catch (error) {
+      console.error('💥 TICKETS: Erro ao comprar tickets:', error)
+      throw new Error(error.response?.data?.message || 'Erro ao comprar tickets')
+    }
+  },
+
+  // Cancelar ticket
+  cancelTicket: async (ticketId) => {
+    try {
+      console.log('❌ TICKETS: Cancelando ticket...', ticketId)
+      const response = await api.put(`/tickets/${ticketId}/cancel`)
+      console.log('✅ TICKETS: Ticket cancelado:', response.data)
+      return response
+    } catch (error) {
+      console.error('💥 TICKETS: Erro ao cancelar ticket:', error)
+      throw new Error(error.response?.data?.message || 'Erro ao cancelar ticket')
+    }
+  }
+}
+
+// ✅ MANTER paymentsAPI como fallback (remover getSalesList que conflita)
+export const paymentsAPI = {
+  // ✅ REMOVER: getSalesList (agora está em ticketsAPI)
+  
+  // Listar meus pagamentos (endpoint antigo mantido para compatibilidade)
+  getMyPayments: async (params = {}) => {
     try {
       const queryParams = new URLSearchParams()
       
       if (params.status) queryParams.append('status', params.status)
       if (params.page) queryParams.append('page', params.page)
       if (params.limit) queryParams.append('limit', params.limit)
-      if (params.sortBy) queryParams.append('sortBy', params.sortBy)
-      if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder)
       
-      const url = `/api/reports/sales${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+      const url = `/payments/my-payments${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
       
-      console.log('📊 TICKETS: Carregando relatório de vendas...', url)
+      console.log('💰 PAYMENTS: Carregando meus pagamentos...', url)
       const response = await api.get(url)
-      console.log('📥 TICKETS: Relatório carregado:', response.data)
+      console.log('📥 PAYMENTS: Pagamentos carregados:', response.data)
       return response
     } catch (error) {
-      console.error('💥 TICKETS: Erro ao carregar relatório:', error)
-      throw new Error(error.response?.data?.message || 'Erro ao carregar relatório de vendas')
+      console.error('💥 PAYMENTS: Erro ao carregar pagamentos:', error)
+      throw new Error(error.response?.data?.message || 'Erro ao carregar pagamentos')
+    }
+  },
+
+  // Pagamentos por rifa (para donos de rifa)
+  getRafflePayments: async (raffleId, params = {}) => {
+    try {
+      const queryParams = new URLSearchParams()
+      
+      if (params.page) queryParams.append('page', params.page)
+      if (params.limit) queryParams.append('limit', params.limit)
+      
+      const url = `/payments/raffle/${raffleId}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+      
+      console.log('🎯 PAYMENTS: Carregando pagamentos da rifa...', url)
+      const response = await api.get(url)
+      console.log('📥 PAYMENTS: Pagamentos da rifa carregados:', response.data)
+      return response
+    } catch (error) {
+      console.error('💥 PAYMENTS: Erro ao carregar pagamentos da rifa:', error)
+      throw new Error(error.response?.data?.message || 'Erro ao carregar pagamentos da rifa')
+    }
+  },
+
+  // Todos os pagamentos (admin)
+  getAllPayments: async (params = {}) => {
+    try {
+      const queryParams = new URLSearchParams()
+      
+      if (params.status) queryParams.append('status', params.status)
+      if (params.page) queryParams.append('page', params.page)
+      if (params.limit) queryParams.append('limit', params.limit)
+      
+      const url = `/payments/admin/all${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
+      
+      console.log('👮 PAYMENTS: Carregando todos os pagamentos (admin)...', url)
+      const response = await api.get(url)
+      console.log('📥 PAYMENTS: Todos os pagamentos carregados:', response.data)
+      return response
+    } catch (error) {
+      console.error('💥 PAYMENTS: Erro ao carregar todos os pagamentos:', error)
+      throw new Error(error.response?.data?.message || 'Erro ao carregar todos os pagamentos')
+    }
+  },
+
+  // Obter status do pagamento
+  getPaymentStatus: async (paymentId) => {
+    try {
+      console.log('📊 PAYMENTS: Carregando status do pagamento...', paymentId)
+      const response = await api.get(`/payments/${paymentId}`)
+      console.log('📥 PAYMENTS: Status do pagamento:', response.data)
+      return response
+    } catch (error) {
+      console.error('💥 PAYMENTS: Erro ao carregar status do pagamento:', error)
+      throw new Error(error.response?.data?.message || 'Erro ao carregar status do pagamento')
+    }
+  },
+
+  // Gerar PIX
+  generatePix: async (ticketId) => {
+    try {
+      console.log('🔢 PAYMENTS: Gerando PIX...', ticketId)
+      const response = await api.post('/payments/pix', { ticketId })
+      console.log('✅ PAYMENTS: PIX gerado:', response.data)
+      return response
+    } catch (error) {
+      console.error('💥 PAYMENTS: Erro ao gerar PIX:', error)
+      throw new Error(error.response?.data?.message || 'Erro ao gerar PIX')
+    }
+  },
+
+  // Confirmar pagamento
+  confirmPayment: async (paymentId, transactionId) => {
+    try {
+      console.log('✅ PAYMENTS: Confirmando pagamento...', { paymentId, transactionId })
+      const response = await api.post('/payments/confirm', { paymentId, transactionId })
+      console.log('✅ PAYMENTS: Pagamento confirmado:', response.data)
+      return response
+    } catch (error) {
+      console.error('💥 PAYMENTS: Erro ao confirmar pagamento:', error)
+      throw new Error(error.response?.data?.message || 'Erro ao confirmar pagamento')
+    }
+  },
+
+  // Estatísticas de pagamentos (admin)
+  getPaymentStats: async () => {
+    try {
+      console.log('📊 PAYMENTS: Carregando estatísticas de pagamentos...')
+      const response = await api.get('/payments/admin/stats')
+      console.log('📥 PAYMENTS: Estatísticas carregadas:', response.data)
+      return response
+    } catch (error) {
+      console.error('💥 PAYMENTS: Erro ao carregar estatísticas:', error)
+      throw new Error(error.response?.data?.message || 'Erro ao carregar estatísticas')
     }
   }
 }
