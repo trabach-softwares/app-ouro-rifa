@@ -12,7 +12,7 @@
           </button>
           <div>
             <h1>Nova Campanha</h1>
-            <p>Configure todos os detalhes da sua rifa</p>
+            <p>Configure todos os detalhes da sua campanha</p>
           </div>
         </div>
       </div>
@@ -46,7 +46,7 @@
       <div class="form-container">
         <form @submit.prevent="criarRifa" class="main-form">
           
-          <!-- ✅ Nome da Campanha -->
+          <!-- Nome da Campanha -->
           <div class="form-section">
             <h3 class="section-title">Como ela vai se chamar?</h3>
             <div class="form-group">
@@ -231,7 +231,7 @@
                 <div v-if="errors.ticketPrice" class="field-error">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"/>
-                  </svg>
+                </svg>
                   {{ errors.ticketPrice }}
                 </div>
               </div>

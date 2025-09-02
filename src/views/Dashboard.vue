@@ -14,11 +14,11 @@
       <div class="mobile-quick-actions mobile-only">
         <router-link to="/rifas/criar" class="quick-action-btn primary">
           <span class="action-icon">➕</span>
-          <span class="action-text">Nova Rifa</span>
+          <span class="action-text">Nova Campanha</span>
         </router-link>
         <router-link to="/rifas" class="quick-action-btn secondary">
           <span class="action-icon">🎯</span>
-          <span class="action-text">Minhas Rifas</span>
+          <span class="action-text">Minhas Campanhas</span>
         </router-link>
         <router-link to="/vendas" class="quick-action-btn secondary">
           <span class="action-icon">💰</span>
@@ -49,7 +49,7 @@
           <div class="stat-card primary">
             <div class="stat-content">
               <div class="stat-number">{{ dashboardStats.totalActiveRaffles }}</div>
-              <div class="stat-label">Rifas Ativas</div>
+              <div class="stat-label">Campanhas Ativas</div>
             </div>
             <div class="stat-icon">🎯</div>
           </div>

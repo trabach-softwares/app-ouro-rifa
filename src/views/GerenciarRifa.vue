@@ -5,19 +5,17 @@
       <!-- Loading -->
       <div v-if="isLoading" class="loading-state">
         <div class="loading-spinner"></div>
-        <p>Carregando dados da rifa...</p>
+        <p>Carregando dados da campanha...</p>
       </div>
 
       <!-- Conteúdo normal da tela -->
       <div v-else>
-        <!-- ✅ REMOVIDO: Header da página -->
-
-        <!-- ✅ MANTER: Header da Rifa COM botão editar no canto direito -->
+        <!-- Header da Campanha -->
         <div class="rifa-header">
           <div class="rifa-header-content">
             <div class="rifa-title-section">
-              <h1 class="rifa-title">{{ rifa.title || 'Rifa sem nome' }}</h1>
-              <p class="rifa-subtitle">Acompanhe vendas e gerencie sua rifa</p>
+              <h1 class="rifa-title">{{ rifa.title || 'Campanha sem nome' }}</h1>
+              <p class="rifa-subtitle">Acompanhe vendas e gerencie sua campanha</p>
             </div>
             <div class="rifa-header-status">
               <span :class="['status-badge-large', rifa.status]">
@@ -25,7 +23,7 @@
               </span>
             </div>
           </div>
-          <!-- ✅ MANTER: Botões no header da rifa -->
+          <!-- Botões no header -->
           <div class="header-actions">
             <router-link :to="`/rifas/${rifa.id}/editar`" class="btn btn-outline">
               ✏️ Editar
@@ -36,7 +34,7 @@
           </div>
         </div>
 
-        <!-- ✅ NOVO: Controle de Status da Rifa -->
+        <!-- Controle de Status da Campanha -->
         <div class="status-control-card">
           <div class="card-header">
             <h2>⚙️ Controle de Status</h2>
@@ -49,7 +47,7 @@
           </div>
 
           <div class="status-actions-grid">
-            <!-- Ativar Rifa -->
+            <!-- Ativar Campanha -->
             <button 
               v-if="rifa.status === 'draft' || rifa.status === 'paused'"
               @click="atualizarStatus('active')"
@@ -58,8 +56,8 @@
             >
               <div class="status-action-icon">▶️</div>
               <div class="status-action-content">
-                <h3>Ativar Rifa</h3>
-                <p>Rifa ficará disponível para vendas</p>
+                <h3>Ativar Campanha</h3>
+                <p>Campanha ficará disponível para vendas</p>
                 <div class="status-requirements">
                   <span class="requirement-item" :class="{ 'valid': rifa.totalTickets > 0 }">
                     ✅ Números configurados
@@ -71,7 +69,7 @@
               </div>
             </button>
 
-            <!-- Pausar Rifa -->
+            <!-- Pausar Campanha -->
             <button 
               v-if="rifa.status === 'active'"
               @click="atualizarStatus('paused')"
@@ -80,12 +78,12 @@
             >
               <div class="status-action-icon">⏸️</div>
               <div class="status-action-content">
-                <h3>Pausar Rifa</h3>
+                <h3>Pausar Campanha</h3>
                 <p>Interromper vendas temporariamente</p>
               </div>
             </button>
 
-            <!-- Finalizar Rifa -->
+            <!-- Finalizar Campanha -->
             <button 
               v-if="rifa.status === 'active' && rifa.soldTickets > 0"
               @click="atualizarStatus('finished')"
@@ -94,12 +92,12 @@
             >
               <div class="status-action-icon">🏁</div>
               <div class="status-action-content">
-                <h3>Finalizar Rifa</h3>
+                <h3>Finalizar Campanha</h3>
                 <p>Encerrar vendas e preparar sorteio</p>
               </div>
             </button>
 
-            <!-- Cancelar Rifa -->
+            <!-- Cancelar Campanha -->
             <button 
               v-if="['draft', 'paused', 'active'].includes(rifa.status)"
               @click="atualizarStatus('cancelled')"
@@ -108,12 +106,12 @@
             >
               <div class="status-action-icon">❌</div>
               <div class="status-action-content">
-                <h3>Cancelar Rifa</h3>
+                <h3>Cancelar Campanha</h3>
                 <p>Cancelar permanentemente</p>
               </div>
             </button>
 
-            <!-- Reativar Rifa Cancelada (apenas para debug/admin) -->
+            <!-- Reativar Campanha Cancelada -->
             <button 
               v-if="rifa.status === 'cancelled'"
               @click="atualizarStatus('draft')"
@@ -123,7 +121,7 @@
               <div class="status-action-icon">🔄</div>
               <div class="status-action-content">
                 <h3>Reativar como Rascunho</h3>
-                <p>Voltar rifa para rascunho</p>
+                <p>Voltar campanha para rascunho</p>
               </div>
             </button>
           </div>
@@ -197,10 +195,10 @@
           </div>
         </div>
 
-        <!-- ✅ NOVO: Informações detalhadas da rifa -->
+        <!-- Informações detalhadas da campanha -->
         <div class="rifa-details-card">
           <div class="card-header">
-            <h2>📋 Detalhes da Rifa</h2>
+            <h2>📋 Detalhes da Campanha</h2>
           </div>
           <div class="details-grid">
             <div class="detail-item">
@@ -226,13 +224,13 @@
               <span class="detail-value">{{ formatDate(rifa.createdAt) }}</span>
             </div>
             <div class="detail-item">
-              <span class="detail-label">ID da rifa:</span>
+              <span class="detail-label">ID da campanha:</span>
               <span class="detail-value mono">#{{ rifa.id }}</span>
             </div>
           </div>
         </div>
 
-        <!-- ✅ MELHORADO: Vendas Recentes -->
+        <!-- ✅ CORRIGIR: Vendas Recentes -->
         <div class="content-card">
           <div class="card-header">
             <h2>💳 Vendas Recentes</h2>
@@ -332,66 +330,24 @@
             <div class="empty-icon">📋</div>
             <h3>Nenhuma venda encontrada</h3>
             <p v-if="temFiltros">Tente ajustar os filtros para encontrar vendas</p>
-            <p v-else>Esta rifa ainda não possui vendas</p>
+            <p v-else>Esta campanha ainda não possui vendas</p>
             <button v-if="temFiltros" @click="limparFiltros" class="btn btn-outline">
               🗑️ Limpar Filtros
             </button>
           </div>
         </div>
 
-        <!-- ✅ MELHORADO: Mapa de Números -->
-        <div class="content-card">
-          <div class="card-header">
-            <h2>🎯 Mapa de Números</h2>
-            <div class="legenda-enhanced">
-              <div class="legenda-item">
-                <div class="legenda-color disponivel"></div>
-                <span>{{ numerosDisponiveis }} Disponível{{ numerosDisponiveis !== 1 ? 'eis' : '' }}</span>
-              </div>
-              <div class="legenda-item">
-                <div class="legenda-color vendido"></div>
-                <span>{{ numerosVendidos }} Vendido{{ numerosVendidos !== 1 ? 's' : '' }}</span>
-              </div>
-              <div class="legenda-item">
-                <div class="legenda-color reservado"></div>
-                <span>{{ numerosReservados }} Reservado{{ numerosReservados !== 1 ? 's' : '' }}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="numeros-container-enhanced">
-            <div class="numeros-grid-enhanced">
-              <div 
-                v-for="numero in numerosGrid" 
-                :key="numero.numero"
-                :class="['numero-cell-enhanced', numero.status]"
-                :title="`Número ${numero.numero.toString().padStart(3, '0')} - ${numero.status}`"
-              >
-                {{ numero.numero.toString().padStart(3, '0') }}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ✅ CORRETO: Ações rápidas -->
+        <!-- ✅ CORRIGIR: Ações Rápidas -->
         <div class="content-card">
           <div class="card-header">
             <h2>⚡ Ações Rápidas</h2>
           </div>
           <div class="actions-grid-enhanced">
-            <button @click="gerarRelatorio" class="action-card-enhanced">
-              <div class="action-icon-enhanced">📊</div>
-              <div class="action-content">
-                <h3>Gerar Relatório</h3>
-                <p>Baixar relatório completo de vendas em formato JSON</p>
-              </div>
-            </button>
-            
             <button @click="enviarLink" class="action-card-enhanced">
-              <div class="action-icon-enhanced">📤</div>
+              <div class="action-icon-enhanced">🔗</div>
               <div class="action-content">
-                <h3>Compartilhar Link</h3>
-                <p>Copiar link da rifa para compartilhar com clientes</p>
+                <h3>Compartilhar Campanha</h3>
+                <p>Copiar link da campanha para compartilhar com clientes</p>
               </div>
             </button>
             
@@ -412,7 +368,7 @@
         </div>
       </div>
 
-      <!-- ✅ CORRIGIDO: Modal de Rifa Indisponível -->
+      <!-- Modal de Campanha Indisponível -->
       <div v-if="showUnavailableModal" class="modal-overlay" @click="handleModalOverlayClick">
         <div class="modal-container unavailable-modal" @click.stop>
           <div class="modal-header">
@@ -422,10 +378,9 @@
               </svg>
             </div>
             <div class="modal-title">
-              <h3>Rifa indisponível para gerenciamento</h3>
-              <p>Esta rifa não pode ser gerenciada no momento</p>
+              <h3>Campanha indisponível para gerenciamento</h3>
+              <p>Esta campanha não pode ser gerenciada no momento</p>
             </div>
-            <!-- ✅ CORRIGIDO: Botão de fechar com redirecionamento -->
             <button @click="closeUnavailableModal" class="modal-close">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
@@ -435,14 +390,22 @@
 
           <div class="modal-body">
             <div class="unavailable-details">
-              <!-- Status da rifa -->
+              <!-- Status da campanha -->
               <div class="status-info-card">
                 <div class="status-icon">🚫</div>
                 <div class="status-content">
-                  <h4>Status atual da rifa</h4>
-                  <span :class="['status-badge-modal', unavailableReason?.status || 'cancelled']">
-                    {{ getStatusText(unavailableReason?.status || 'cancelled') }}
-                  </span>
+                  <h4>Status atual da campanha</h4>
+                  <div class="status-description">
+                    <span v-if="unavailableReason?.status === 'cancelled'" class="status-text cancelled">
+                      Esta campanha foi cancelada
+                    </span>
+                    <span v-else-if="unavailableReason?.status === 'deleted'" class="status-text deleted">
+                      Esta campanha foi removida do sistema
+                    </span>
+                    <span v-else>
+                      Campanha não está disponível para visualização
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -457,13 +420,13 @@
                         <path d="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"/>
                       </svg>
                       <span v-if="unavailableReason?.status === 'cancelled'">
-                        Rifas canceladas não podem ser gerenciadas
+                        Campanhas canceladas não podem ser gerenciadas
                       </span>
                       <span v-else-if="unavailableReason?.status === 'deleted'">
-                        Esta rifa foi removida do sistema
+                        Esta campanha foi removida do sistema
                       </span>
                       <span v-else>
-                        Rifa não está disponível para visualização
+                        Campanha não está disponível para visualização
                       </span>
                     </div>
                   </div>
@@ -480,17 +443,17 @@
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M10,4H14V6H10V4M4,6V8H20V6H4M5,10V21H9V14H15V21H19V10H5Z"/>
                       </svg>
-                      <span>Voltar à lista de rifas</span>
+                      <span>Voltar à lista de campanhas</span>
                     </div>
                     <div v-if="unavailableReason?.status === 'cancelled'" class="action-item">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
                       </svg>
-                      <span>Criar uma nova rifa</span>
+                      <span>Criar uma nova campanha</span>
                     </div>
                     <div class="action-item">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M20,18C20.5,18 21,17.5 21,17C21,16.5 20.5,16 20,16C19.5,16 19,16.5 19,17C19,17.5 19.5,18 20,18M20,10V15L18.5,13.5C17.3,14.7 15.7,15.3 14,15.3C10.1,15.3 7,12.2 7,8.3C7,4.4 10.1,1.3 14,1.3C17.9,1.3 21,4.4 21,8.3H19C19,5.5 16.8,3.3 14,3.3C11.2,3.3 9,5.5 9,8.3C9,11.1 11.2,13.3 14,13.3C15.4,13.3 16.6,12.7 17.5,11.8L16,10.3L20,10.3V10Z"/>
+                        <path d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z"/>
                       </svg>
                       <span>Atualizar lista e tentar novamente</span>
                     </div>
@@ -501,7 +464,6 @@
           </div>
 
           <div class="modal-footer">
-            <!-- ✅ CORRIGIDO: Botão Voltar à Lista agora usa closeUnavailableModal -->
             <button @click="closeUnavailableModal" class="btn btn-outline">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z"/>
@@ -512,7 +474,7 @@
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/>
               </svg>
-              Criar Nova Rifa
+              Criar Nova Campanha
             </button>
             <button v-else @click="atualizarEVoltar" class="btn btn-success">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -1036,11 +998,11 @@ const atualizarStatus = async (novoStatus) => {
     // ✅ Validações específicas por status
     if (novoStatus === 'active') {
       if (!rifa.value.totalTickets || rifa.value.totalTickets <= 0) {
-        showMessage('Configure a quantidade de números antes de ativar a rifa', 'error')
+        showMessage('Configure a quantidade de números antes de ativar a campanha', 'error')
         return
       }
       if (!rifa.value.ticketPrice || rifa.value.ticketPrice <= 0) {
-        showMessage('Defina o preço dos números antes de ativar a rifa', 'error')
+        showMessage('Defina o preço dos números antes de ativar a campanha', 'error')
         return
       }
     }
@@ -1051,22 +1013,22 @@ const atualizarStatus = async (novoStatus) => {
 
     switch (novoStatus) {
       case 'active':
-        mensagemConfirmacao = 'Tem certeza que deseja ATIVAR esta rifa?\n\nEla ficará disponível para vendas imediatamente.'
+        mensagemConfirmacao = 'Tem certeza que deseja ATIVAR esta campanha?\n\nEla ficará disponível para vendas imediatamente.'
         break
       case 'paused':
-        mensagemConfirmacao = 'Tem certeza que deseja PAUSAR esta rifa?\n\nAs vendas serão interrompidas temporariamente.'
+        mensagemConfirmacao = 'Tem certeza que deseja PAUSAR esta campanha?\n\nAs vendas serão interrompidas temporariamente.'
         tipoConfirmacao = 'warning'
         break
       case 'finished':
-        mensagemConfirmacao = `Tem certeza que deseja FINALIZAR esta rifa?\n\n${rifa.value.soldTickets} números foram vendidos.\nApós finalizar, você poderá realizar o sorteio.`
+        mensagemConfirmacao = `Tem certeza que deseja FINALIZAR esta campanha?\n\n${rifa.value.soldTickets} números foram vendidos.\nApós finalizar, você poderá realizar o sorteio.`
         tipoConfirmacao = 'info'
         break
       case 'cancelled':
-        mensagemConfirmacao = 'ATENÇÃO! Tem certeza que deseja CANCELAR esta rifa?\n\n⚠️ Esta ação NÃO PODE ser desfeita!\n⚠️ Todos os dados de venda serão mantidos para histórico.'
+        mensagemConfirmacao = 'ATENÇÃO! Tem certeza que deseja CANCELAR esta campanha?\n\n⚠️ Esta ação NÃO PODE ser desfeita!\n⚠️ Todos os dados de venda serão mantidos para histórico.'
         tipoConfirmacao = 'danger'
         break
       case 'draft':
-        mensagemConfirmacao = 'Reativar esta rifa como rascunho?\n\nEla voltará ao estado de edição.'
+        mensagemConfirmacao = 'Reativar esta campanha como rascunho?\n\nEla voltará ao estado de edição.'
         break
       default:
         mensagemConfirmacao = `Alterar status para "${getStatusText(novoStatus)}"?`
@@ -1078,8 +1040,8 @@ const atualizarStatus = async (novoStatus) => {
     }
 
     isUpdatingStatus.value = true
-
-    console.log('🔄 Atualizando status da rifa:', {
+    
+    console.log('🔄 Atualizando status da campanha:', {
       rifaId: rifa.value.id,
       statusAtual: rifa.value.status,
       novoStatus: novoStatus
@@ -1096,19 +1058,19 @@ const atualizarStatus = async (novoStatus) => {
       let mensagemSucesso = ''
       switch (novoStatus) {
         case 'active':
-          mensagemSucesso = '🚀 Rifa ativada com sucesso! Agora está disponível para vendas.'
+          mensagemSucesso = '🚀 Campanha ativada com sucesso! Agora está disponível para vendas.'
           break
         case 'paused':
-          mensagemSucesso = '⏸️ Rifa pausada. As vendas foram interrompidas.'
+          mensagemSucesso = '⏸️ Campanha pausada. As vendas foram interrompidas.'
           break
         case 'finished':
-          mensagemSucesso = '🏁 Rifa finalizada! Agora você pode realizar o sorteio.'
+          mensagemSucesso = '🏁 Campanha finalizada! Agora você pode realizar o sorteio.'
           break
         case 'cancelled':
-          mensagemSucesso = '🗑️ Rifa cancelada permanentemente.'
+          mensagemSucesso = '🗑️ Campanha cancelada permanentemente.'
           break
         case 'draft':
-          mensagemSucesso = '📝 Rifa reativada como rascunho.'
+          mensagemSucesso = '📝 Campanha reativada como rascunho.'
           break
         default:
           mensagemSucesso = `Status alterado para "${getStatusText(novoStatus)}" com sucesso!`
@@ -1126,15 +1088,15 @@ const atualizarStatus = async (novoStatus) => {
   } catch (error) {
     console.error('💥 Erro ao atualizar status:', error)
     
-    let mensagemErro = 'Erro ao atualizar status da rifa'
+    let mensagemErro = 'Erro ao atualizar status da campanha'
     
     // ✅ Tratamento de erros específicos
     if (error.response?.status === 400) {
-      mensagemErro = error.response.data?.message || 'Status inválido para esta rifa'
+      mensagemErro = error.response.data?.message || 'Status inválido para esta campanha'
     } else if (error.response?.status === 403) {
-      mensagemErro = 'Você não tem permissão para alterar o status desta rifa'
+      mensagemErro = 'Você não tem permissão para alterar o status desta campanha'
     } else if (error.response?.status === 404) {
-      mensagemErro = 'Rifa não encontrada'
+      mensagemErro = 'Campanha não encontrada'
     } else if (error.message) {
       mensagemErro = error.message
     }

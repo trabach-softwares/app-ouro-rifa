@@ -19,7 +19,7 @@
               <img src="@/assets/logo.png" alt="Ouro Rifa" class="brand-logo-img" />
               <h1>Ouro Rifa</h1>
             </div>
-            <p class="brand-tagline">Sistema completo para suas rifas</p>
+            <p class="brand-tagline">Sistema completo para suas campanhas</p>
           </div>
 
           <!-- Header -->

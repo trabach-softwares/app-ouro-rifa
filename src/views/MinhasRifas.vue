@@ -4,12 +4,12 @@
       <!-- Header da página -->
       <div class="page-header">
         <div class="header-content">
-          <h1>Minhas Rifas</h1>
-          <p>Gerencie e acompanhe todas as suas rifas</p>
+          <h1>Minhas Campanhas</h1>
+          <p>Gerencie e acompanhe todas as suas campanhas</p>
         </div>
         <div class="header-actions">
           <router-link to="/rifas/criar" class="btn btn-primary">
-            ➕ Nova Rifa
+            ➕ Nova Campanha
           </router-link>
         </div>
       </div>
@@ -31,7 +31,7 @@
             v-model="termoBusca" 
             @input="debounceSearch"
             type="text" 
-            placeholder="Buscar rifas..."
+            placeholder="Buscar campanhas..."
             class="search-input"
           />
           
@@ -69,7 +69,7 @@
         </button>
       </div>
 
-      <!-- Lista de rifas -->
+      <!-- Lista de campanhas -->
       <div v-else-if="!isLoading && !error && rifasFiltradas.length > 0" class="rifas-grid">
         <div 
           v-for="rifa in rifasFiltradas" 
@@ -79,7 +79,7 @@
           <div class="rifa-image">
             <div v-if="!getRifaImageUrl(rifa)" class="image-placeholder">
               <div class="placeholder-icon">🎯</div>
-              <div class="placeholder-text">{{ rifa.title }}</div>
+              <span>Campanha sem imagem</span>
             </div>
             
             <div v-else class="rifa-image-container">
@@ -105,7 +105,7 @@
           </div>
           
           <div class="rifa-content">
-            <h3>{{ rifa.title }}</h3>
+            <h3>{{ rifa.title || 'Campanha sem nome' }}</h3>
             <p class="rifa-premio">{{ formatCurrency(calculateTotalPrize(rifa)) }}</p>
             
             <div class="rifa-stats">
@@ -139,35 +139,21 @@
             </div>
             
             <div class="rifa-actions">
-              <router-link 
-                :to="`/rifas/${rifa.id}`"
-                class="btn btn-outline"
-              >
+              <router-link :to="`/rifas/${rifa.id}`" class="btn btn-primary">
                 📊 Gerenciar
               </router-link>
+              
               <button 
-                v-if="rifa.status === 'pending'"
+                v-if="rifa.status === 'draft'"
                 @click="ativarRifa(rifa.id)"
                 class="btn btn-success"
                 :disabled="isUpdatingStatus"
               >
-                ✅ Ativar
-              </button>
-              <button 
-                v-if="rifa.status === 'active'"
-                @click="pausarRifa(rifa.id)"
-                class="btn btn-warning"
-                :disabled="isUpdatingStatus"
-              >
-                ⏸️ Pausar
-              </button>
-              <button 
-                v-else-if="rifa.status === 'paused'"
-                @click="ativarRifa(rifa.id)"
-                class="btn btn-success"
-                :disabled="isUpdatingStatus"
-              >
-                ▶️ Ativar
+                <svg v-if="!isUpdatingStatus" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8,5.14V19.14L19,12.14L8,5.14Z"/>
+                </svg>
+                <div v-else class="loading-spinner-small"></div>
+                {{ isUpdatingStatus ? 'Ativando...' : 'Ativar Campanha' }}
               </button>
             </div>
           </div>
@@ -193,7 +179,7 @@
         
         <span class="pagination-info">
           Página {{ pagination.currentPage }} de {{ pagination.totalPages }}
-          ({{ pagination.totalItems }} rifas)
+          ({{ pagination.totalItems }} campanhas)
         </span>
         
         <button 
@@ -215,28 +201,197 @@
       <!-- Estado vazio -->
       <div v-else-if="!isLoading && !error && rifasFiltradas.length === 0" class="empty-state">
         <div class="empty-icon">🎯</div>
-        <h3>{{ temFiltros ? 'Nenhuma rifa encontrada' : 'Nenhuma rifa criada ainda' }}</h3>
+        <h3>{{ temFiltros ? 'Nenhuma campanha encontrada' : 'Nenhuma campanha criada ainda' }}</h3>
         <p v-if="temFiltros">
-          Tente ajustar os filtros ou busca para encontrar suas rifas.
+          Tente ajustar os filtros ou busca para encontrar suas campanhas.
         </p>
         <p v-else-if="rifas.length === 0">
-          Você ainda não criou nenhuma rifa. Comece criando sua primeira rifa!
+          Você ainda não criou nenhuma campanha. Comece criando sua primeira campanha!
         </p>
         <p v-else>
-          Nenhuma rifa corresponde aos filtros aplicados.
+          Nenhuma campanha corresponde aos filtros aplicados.
         </p>
         
         <div class="empty-actions">
           <router-link v-if="rifas.length === 0" to="/rifas/criar" class="btn btn-primary">
-            ➕ Criar Primeira Rifa
+            ➕ Criar Primeira Campanha
           </router-link>
           <div v-else class="filter-actions">
             <button @click="limparFiltros" class="btn btn-outline">
               🗑️ Limpar Filtros
             </button>
             <router-link to="/rifas/criar" class="btn btn-primary">
-              ➕ Nova Rifa
+              ➕ Nova Campanha
             </router-link>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal de Confirmação para Ativar Campanha -->
+      <div v-if="showConfirmModal" class="modal-overlay" @click="closeConfirmModal">
+        <div class="modal-container" @click.stop>
+          <div class="modal-header">
+            <div class="modal-icon success">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"/>
+              </svg>
+            </div>
+            <div class="modal-title">
+              <h3>Ativar Campanha</h3>
+              <p>Você está prestes a ativar esta campanha</p>
+            </div>
+            <button @click="closeConfirmModal" class="modal-close">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <div class="confirmation-details">
+              <div class="rifa-preview">
+                <h4>{{ rifaParaAtivar?.title || 'Campanha sem nome' }}</h4>
+                <div class="preview-stats">
+                  <span class="stat-item">
+                    <strong>{{ rifaParaAtivar?.totalTickets || 0 }}</strong> números
+                  </span>
+                  <span class="stat-item">
+                    <strong>{{ formatCurrency(rifaParaAtivar?.ticketPrice || 0) }}</strong> cada
+                  </span>
+                  <span class="stat-item">
+                    <strong>{{ formatCurrency(calculateTotalPrize(rifaParaAtivar || {})) }}</strong> total
+                  </span>
+                </div>
+              </div>
+
+              <div class="confirmation-checklist">
+                <div class="checklist-item">
+                  <div :class="['check-icon', (rifaParaAtivar?.totalTickets > 0) ? 'valid' : 'invalid']">
+                    <svg v-if="rifaParaAtivar?.totalTickets > 0" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"/>
+                    </svg>
+                    <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                    </svg>
+                  </div>
+                  <span :class="{ 'valid': rifaParaAtivar?.totalTickets > 0 }">
+                    Quantidade de números definida
+                  </span>
+                </div>
+                
+                <div class="checklist-item">
+                  <div :class="['check-icon', (rifaParaAtivar?.ticketPrice > 0) ? 'valid' : 'invalid']">
+                    <svg v-if="rifaParaAtivar?.ticketPrice > 0" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"/>
+                    </svg>
+                    <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                    </svg>
+                  </div>
+                  <span :class="{ 'valid': rifaParaAtivar?.ticketPrice > 0 }">
+                    Preço por número configurado
+                  </span>
+                </div>
+              </div>
+
+              <div class="activation-warning">
+                <div class="warning-icon">⚠️</div>
+                <div class="warning-content">
+                  <strong>Atenção!</strong>
+                  <p>Após ativar, a campanha ficará disponível para vendas imediatamente. Certifique-se de que todas as informações estão corretas.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button @click="closeConfirmModal" class="btn btn-outline">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+              </svg>
+              Cancelar
+            </button>
+            <button 
+              @click="confirmarAtivacao" 
+              class="btn btn-success"
+              :disabled="isUpdatingStatus || !podeAtivarRifa"
+            >
+              <div v-if="isUpdatingStatus" class="loading-spinner-small"></div>
+              {{ isUpdatingStatus ? 'Ativando...' : 'Ativar Campanha' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal de Erro -->
+      <div v-if="showErrorModal" class="modal-overlay" @click="closeErrorModal">
+        <div class="modal-container error-modal" @click.stop>
+          <div class="modal-header">
+            <div class="modal-icon error">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"/>
+              </svg>
+            </div>
+            <div class="modal-title">
+              <h3>Não foi possível ativar a campanha</h3>
+              <p>Corrija os problemas abaixo antes de ativar</p>
+            </div>
+            <button @click="closeErrorModal" class="modal-close">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <div class="error-details">
+              <!-- ✅ NOVO: Erro principal em destaque -->
+              <div class="error-highlight">
+                <div class="error-icon-main">⚠️</div>
+                <div class="error-content-main">
+                  <h4>{{ errorModalData.title }}</h4>
+                  <p class="error-message-main">{{ errorModalData.message }}</p>
+                </div>
+              </div>
+
+              <!-- ✅ MELHORADO: Detalhes técnicos mais visíveis -->
+              <div v-if="errorModalData.technicalInfo" class="technical-error-card">
+                <div class="technical-header">
+                  <div class="technical-icon">🔍</div>
+                  <h5>Detalhes do Erro</h5>
+                </div>
+                <div class="technical-content">
+                  <div class="error-code">{{ errorModalData.technicalInfo }}</div>
+                </div>
+              </div>
+
+              <!-- ✅ Sugestões de solução -->
+              <div v-if="errorModalData.suggestions?.length" class="error-solutions">
+                <div class="solutions-header">
+                  <div class="solutions-icon">💡</div>
+                  <h5>Como resolver</h5>
+                </div>
+                <ul class="solutions-list">
+                  <li v-for="(suggestion, index) in errorModalData.suggestions" :key="index">
+                    <span class="solution-number">{{ index + 1 }}</span>
+                    <span class="solution-text">{{ suggestion }}</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button @click="closeErrorModal" class="btn btn-outline">
+              Fechar
+            </button>
+            <button 
+              v-if="errorModalData.actionButton"
+              @click="errorModalData.actionButton.action" 
+              :class="['btn', errorModalData.actionButton.type]"
+            >
+              {{ errorModalData.actionButton.text }}
+            </button>
           </div>
         </div>
       </div>
@@ -291,9 +446,11 @@
                     <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
                   </svg>
                 </div>
-                <span>Quantidade de números configurada</span>
+                <span :class="{ 'valid': rifaParaAtivar?.totalTickets > 0 }">
+                  Quantidade de números definida
+                </span>
               </div>
-
+              
               <div class="checklist-item">
                 <div :class="['check-icon', (rifaParaAtivar?.ticketPrice > 0) ? 'valid' : 'invalid']">
                   <svg v-if="rifaParaAtivar?.ticketPrice > 0" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -303,7 +460,9 @@
                     <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
                   </svg>
                 </div>
-                <span>Preço por número definido</span>
+                <span :class="{ 'valid': rifaParaAtivar?.ticketPrice > 0 }">
+                  Preço por número configurado
+                </span>
               </div>
             </div>
 
@@ -329,30 +488,100 @@
             class="btn btn-success"
             :disabled="isUpdatingStatus || !podeAtivarRifa"
           >
-            <svg v-if="!isUpdatingStatus" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M8,5.14V19.14L19,12.14L8,5.14Z"/>
-            </svg>
-            <div v-else class="loading-spinner-small"></div>
+            <div v-if="isUpdatingStatus" class="loading-spinner-small"></div>
             {{ isUpdatingStatus ? 'Ativando...' : 'Ativar Rifa' }}
           </button>
         </div>
       </div>
+
+      <!-- ✅ NOVO: Modal de Erro -->
+      <div v-if="showErrorModal" class="modal-overlay" @click="closeErrorModal">
+        <div class="modal-container error-modal" @click.stop>
+          <div class="modal-header">
+            <div class="modal-icon error">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"/>
+              </svg>
+            </div>
+            <div class="modal-title">
+              <h3>Não foi possível ativar a rifa</h3>
+              <p>Corrija os problemas abaixo antes de ativar</p>
+            </div>
+            <button @click="closeErrorModal" class="modal-close">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <div class="error-details">
+              <!-- ✅ NOVO: Erro principal em destaque -->
+              <div class="error-highlight">
+                <div class="error-icon-main">⚠️</div>
+                <div class="error-content-main">
+                  <h4>{{ errorModalData.title }}</h4>
+                  <p class="error-message-main">{{ errorModalData.message }}</p>
+                </div>
+              </div>
+
+              <!-- ✅ MELHORADO: Detalhes técnicos mais visíveis -->
+              <div v-if="errorModalData.technicalInfo" class="technical-error-card">
+                <div class="technical-header">
+                  <div class="technical-icon">🔍</div>
+                  <h5>Detalhes do Erro</h5>
+                </div>
+                <div class="technical-content">
+                  <div class="error-code">{{ errorModalData.technicalInfo }}</div>
+                </div>
+              </div>
+
+              <!-- ✅ Sugestões de solução -->
+              <div v-if="errorModalData.suggestions?.length" class="error-solutions">
+                <div class="solutions-header">
+                  <div class="solutions-icon">💡</div>
+                  <h5>Como resolver</h5>
+                </div>
+                <ul class="solutions-list">
+                  <li v-for="(suggestion, index) in errorModalData.suggestions" :key="index">
+                    <span class="solution-number">{{ index + 1 }}</span>
+                    <span class="solution-text">{{ suggestion }}</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button @click="closeErrorModal" class="btn btn-outline">
+              Fechar
+            </button>
+            <button 
+              v-if="errorModalData.actionButton"
+              @click="errorModalData.actionButton.action" 
+              :class="['btn', errorModalData.actionButton.type]"
+            >
+              {{ errorModalData.actionButton.text }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- ✅ NOVO: Modal de Erro -->
-    <div v-if="showErrorModal" class="modal-overlay" @click="closeErrorModal">
-      <div class="modal-container error-modal" @click.stop>
+    <!-- ✅ NOVO: Modal de Confirmação para Ativar Rifa -->
+    <div v-if="showConfirmModal" class="modal-overlay" @click="closeConfirmModal">
+      <div class="modal-container" @click.stop>
         <div class="modal-header">
-          <div class="modal-icon error">
+          <div class="modal-icon success">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"/>
+              <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"/>
             </svg>
           </div>
           <div class="modal-title">
-            <h3>Não foi possível ativar a rifa</h3>
-            <p>Corrija os problemas abaixo antes de ativar</p>
+            <h3>Ativar Rifa</h3>
+            <p>Você está prestes a ativar esta rifa</p>
           </div>
-          <button @click="closeErrorModal" class="modal-close">
+          <button @click="closeConfirmModal" class="modal-close">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
               <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
             </svg>
@@ -360,54 +589,152 @@
         </div>
 
         <div class="modal-body">
-          <div class="error-details">
-            <!-- ✅ NOVO: Erro principal em destaque -->
-            <div class="error-highlight">
-              <div class="error-icon-main">⚠️</div>
-              <div class="error-content-main">
-                <h4>{{ errorModalData.title }}</h4>
-                <p class="error-message-main">{{ errorModalData.message }}</p>
+          <div class="confirmation-details">
+            <div class="rifa-preview">
+              <div class="rifa-preview-info">
+                <h4>{{ rifaParaAtivar?.title }}</h4>
+                <div class="rifa-stats-small">
+                  <span class="stat-item">
+                    <strong>{{ rifaParaAtivar?.totalTickets || 0 }}</strong> números
+                  </span>
+                  <span class="stat-item">
+                    <strong>{{ formatCurrency(rifaParaAtivar?.ticketPrice || 0) }}</strong> cada
+                  </span>
+                  <span class="stat-item">
+                    <strong>{{ formatCurrency(calculateTotalPrize(rifaParaAtivar || {})) }}</strong> total
+                  </span>
+                </div>
               </div>
             </div>
 
-            <!-- ✅ MELHORADO: Detalhes técnicos mais visíveis -->
-            <div v-if="errorModalData.technicalInfo" class="technical-error-card">
-              <div class="technical-header">
-                <div class="technical-icon">🔍</div>
-                <h5>Detalhes do Erro</h5>
+            <div class="confirmation-checklist">
+              <div class="checklist-item">
+                <div :class="['check-icon', (rifaParaAtivar?.totalTickets > 0) ? 'valid' : 'invalid']">
+                  <svg v-if="rifaParaAtivar?.totalTickets > 0" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"/>
+                  </svg>
+                  <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                  </svg>
+                </div>
+                <span :class="{ 'valid': rifaParaAtivar?.totalTickets > 0 }">
+                  Quantidade de números definida
+                </span>
               </div>
-              <div class="technical-content">
-                <div class="error-code">{{ errorModalData.technicalInfo }}</div>
+              
+              <div class="checklist-item">
+                <div :class="['check-icon', (rifaParaAtivar?.ticketPrice > 0) ? 'valid' : 'invalid']">
+                  <svg v-if="rifaParaAtivar?.ticketPrice > 0" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M9,20.42L2.79,14.21L5.62,11.38L9,14.77L18.88,4.88L21.71,7.71L9,20.42Z"/>
+                  </svg>
+                  <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                  </svg>
+                </div>
+                <span :class="{ 'valid': rifaParaAtivar?.ticketPrice > 0 }">
+                  Preço por número configurado
+                </span>
               </div>
             </div>
 
-            <!-- ✅ Sugestões de solução -->
-            <div v-if="errorModalData.suggestions?.length" class="error-solutions">
-              <div class="solutions-header">
-                <div class="solutions-icon">💡</div>
-                <h5>Como resolver</h5>
+            <div class="activation-warning">
+              <div class="warning-icon">⚠️</div>
+              <div class="warning-content">
+                <strong>Atenção!</strong>
+                <p>Após ativar, a rifa ficará disponível para vendas imediatamente. Certifique-se de que todas as informações estão corretas.</p>
               </div>
-              <ul class="solutions-list">
-                <li v-for="(suggestion, index) in errorModalData.suggestions" :key="index">
-                  <span class="solution-number">{{ index + 1 }}</span>
-                  <span class="solution-text">{{ suggestion }}</span>
-                </li>
-              </ul>
             </div>
           </div>
         </div>
 
         <div class="modal-footer">
-          <button @click="closeErrorModal" class="btn btn-outline">
-            Fechar
+          <button @click="closeConfirmModal" class="btn btn-outline">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+            </svg>
+            Cancelar
           </button>
           <button 
-            v-if="errorModalData.actionButton"
-            @click="errorModalData.actionButton.action" 
-            :class="['btn', errorModalData.actionButton.type]"
+            @click="confirmarAtivacao" 
+            class="btn btn-success"
+            :disabled="isUpdatingStatus || !podeAtivarRifa"
           >
-            {{ errorModalData.actionButton.text }}
+            <div v-if="isUpdatingStatus" class="loading-spinner-small"></div>
+            {{ isUpdatingStatus ? 'Ativando...' : 'Ativar Rifa' }}
           </button>
+        </div>
+      </div>
+
+      <!-- ✅ NOVO: Modal de Erro -->
+      <div v-if="showErrorModal" class="modal-overlay" @click="closeErrorModal">
+        <div class="modal-container error-modal" @click.stop>
+          <div class="modal-header">
+            <div class="modal-icon error">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"/>
+              </svg>
+            </div>
+            <div class="modal-title">
+              <h3>Não foi possível ativar a rifa</h3>
+              <p>Corrija os problemas abaixo antes de ativar</p>
+            </div>
+            <button @click="closeErrorModal" class="modal-close">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <div class="error-details">
+              <!-- ✅ NOVO: Erro principal em destaque -->
+              <div class="error-highlight">
+                <div class="error-icon-main">⚠️</div>
+                <div class="error-content-main">
+                  <h4>{{ errorModalData.title }}</h4>
+                  <p class="error-message-main">{{ errorModalData.message }}</p>
+                </div>
+              </div>
+
+              <!-- ✅ MELHORADO: Detalhes técnicos mais visíveis -->
+              <div v-if="errorModalData.technicalInfo" class="technical-error-card">
+                <div class="technical-header">
+                  <div class="technical-icon">🔍</div>
+                  <h5>Detalhes do Erro</h5>
+                </div>
+                <div class="technical-content">
+                  <div class="error-code">{{ errorModalData.technicalInfo }}</div>
+                </div>
+              </div>
+
+              <!-- ✅ Sugestões de solução -->
+              <div v-if="errorModalData.suggestions?.length" class="error-solutions">
+                <div class="solutions-header">
+                  <div class="solutions-icon">💡</div>
+                  <h5>Como resolver</h5>
+                </div>
+                <ul class="solutions-list">
+                  <li v-for="(suggestion, index) in errorModalData.suggestions" :key="index">
+                    <span class="solution-number">{{ index + 1 }}</span>
+                    <span class="solution-text">{{ suggestion }}</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button @click="closeErrorModal" class="btn btn-outline">
+              Fechar
+            </button>
+            <button 
+              v-if="errorModalData.actionButton"
+              @click="errorModalData.actionButton.action" 
+              :class="['btn', errorModalData.actionButton.type]"
+            >
+              {{ errorModalData.actionButton.text }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -534,11 +861,11 @@ const pausarRifa = async (id) => {
   try {
     isUpdatingStatus.value = true
     await rifasAPI.updateStatus(id, 'paused')
-    showMessage('Rifa pausada com sucesso!', 'success')
+    showMessage('Campanha pausada com sucesso!', 'success')
     await carregarRifas(pagination.value.currentPage)
   } catch (error) {
-    console.error('Erro ao pausar rifa:', error)
-    showMessage('Erro ao pausar rifa: ' + error.message, 'error')
+    console.error('Erro ao pausar campanha:', error)
+    showMessage('Erro ao pausar campanha: ' + error.message, 'error')
   } finally {
     isUpdatingStatus.value = false
   }
@@ -546,15 +873,15 @@ const pausarRifa = async (id) => {
 
 // ✅ FUNÇÃO para ativar rifa (já existe no código, mantendo)
 const ativarRifa = async (id) => {
-  // Encontrar a rifa
+  // Encontrar a campanha
   const rifa = rifas.value.find(r => r.id === id)
   if (!rifa) {
     showErrorModal.value = true
     errorModalData.value = {
-      title: 'Rifa não encontrada',
-      message: 'Não foi possível encontrar os dados da rifa selecionada.',
+      title: 'Campanha não encontrada',
+      message: 'Não foi possível encontrar os dados da campanha selecionada.',
       suggestions: ['Recarregue a página e tente novamente'],
-      technicalInfo: `Rifa ID: ${id}`,
+      technicalInfo: `Campanha ID: ${id}`,
       actionButton: {
         text: 'Recarregar Página',
         type: 'btn-primary',
@@ -564,7 +891,7 @@ const ativarRifa = async (id) => {
     return
   }
 
-  // Definir rifa para ativar e mostrar modal de confirmação
+  // Definir campanha para ativar e mostrar modal de confirmação
   rifaParaAtivar.value = rifa
   showConfirmModal.value = true
 }
@@ -576,7 +903,7 @@ const confirmarAtivacao = async () => {
   try {
     isUpdatingStatus.value = true
     
-    console.log('🔄 Ativando rifa:', rifaParaAtivar.value.id)
+    console.log('🔄 Ativando campanha:', rifaParaAtivar.value.id)
     
     const response = await rifasAPI.updateStatus(rifaParaAtivar.value.id, 'active')
     
@@ -590,10 +917,10 @@ const confirmarAtivacao = async () => {
     
     // Fechar modal e mostrar sucesso
     closeConfirmModal()
-    showMessage('🚀 Rifa ativada com sucesso! Agora está disponível para vendas.', 'success')
+    showMessage('🚀 Campanha ativada com sucesso! Agora está disponível para vendas.', 'success')
     
   } catch (error) {
-    console.error('💥 Erro ao ativar rifa:', error)
+    console.error('💥 Erro ao ativar campanha:', error)
     
     // Fechar modal de confirmação
     closeConfirmModal()
@@ -609,8 +936,8 @@ const confirmarAtivacao = async () => {
 // ✅ FUNÇÃO para processar erros (já existe no código, mantendo)
 const processarErroAtivacao = (error) => {
   let errorInfo = {
-    title: 'Erro ao ativar rifa',
-    message: 'Ocorreu um erro inesperado ao tentar ativar a rifa.',
+    title: 'Erro ao ativar campanha',
+    message: 'Ocorreu um erro inesperado ao tentar ativar a campanha.',
     suggestions: [],
     technicalInfo: '',
     actionButton: null
@@ -619,22 +946,21 @@ const processarErroAtivacao = (error) => {
   if (error.response?.data) {
     const errorData = error.response.data
     
-    // Mapear erros específicos da API
     if (errorData.message) {
       const message = errorData.message.toLowerCase()
       
       if (message.includes('data de fim') || message.includes('sorteio') || message.includes('drawdate')) {
         errorInfo = {
           title: 'Data de sorteio não definida',
-          message: 'A rifa precisa ter uma data de término ou sorteio definida antes de ser ativada.',
+          message: 'A campanha precisa ter uma data de término ou sorteio definida antes de ser ativada.',
           suggestions: [
-            'Acesse as configurações da rifa',
+            'Acesse as configurações da campanha',
             'Defina uma data de encerramento',
             'Salve as alterações e tente ativar novamente'
           ],
           technicalInfo: errorData.message,
           actionButton: {
-            text: 'Editar Rifa',
+            text: 'Editar Campanha',
             type: 'btn-primary',
             action: () => {
               closeErrorModal()
@@ -645,15 +971,15 @@ const processarErroAtivacao = (error) => {
       } else if (message.includes('números') || message.includes('tickets')) {
         errorInfo = {
           title: 'Configuração de números incompleta',
-          message: 'A quantidade de números da rifa não está configurada corretamente.',
+          message: 'A quantidade de números da campanha não está configurada corretamente.',
           suggestions: [
             'Verifique se a quantidade total de números foi definida',
             'Confirme se o valor é maior que zero',
-            'Edite a rifa e corrija as configurações'
+            'Edite a campanha e corrija as configurações'
           ],
           technicalInfo: errorData.message,
           actionButton: {
-            text: 'Editar Rifa',
+            text: 'Editar Campanha',
             type: 'btn-primary',
             action: () => {
               closeErrorModal()
@@ -664,7 +990,7 @@ const processarErroAtivacao = (error) => {
       } else if (message.includes('preço') || message.includes('price') || message.includes('valor')) {
         errorInfo = {
           title: 'Preço não definido',
-          message: 'O preço por número da rifa não foi definido ou é inválido.',
+          message: 'O preço por número da campanha não foi definido ou é inválido.',
           suggestions: [
             'Defina um preço válido para cada número',
             'Certifique-se de que o valor é maior que R$ 0,00',
@@ -672,7 +998,7 @@ const processarErroAtivacao = (error) => {
           ],
           technicalInfo: errorData.message,
           actionButton: {
-            text: 'Editar Rifa',
+            text: 'Editar Campanha',
             type: 'btn-primary',
             action: () => {
               closeErrorModal()
@@ -683,39 +1009,29 @@ const processarErroAtivacao = (error) => {
       } else if (message.includes('permissão') || message.includes('permission')) {
         errorInfo = {
           title: 'Sem permissão',
-          message: 'Você não tem permissão para ativar esta rifa.',
+          message: 'Você não tem permissão para ativar esta campanha.',
           suggestions: [
-            'Verifique se você é o proprietário da rifa',
+            'Verifique se você é o proprietário da campanha',
             'Entre em contato com o suporte se o problema persistir'
           ],
           technicalInfo: errorData.message,
           actionButton: null
         }
-      } else {
-        // Erro genérico da API
-        errorInfo.message = errorData.message
-        errorInfo.technicalInfo = JSON.stringify(errorData, null, 2)
-        errorInfo.suggestions = [
-          'Verifique se todas as configurações da rifa estão corretas',
-          'Tente novamente em alguns momentos',
-          'Entre em contato com o suporte se o problema persistir'
-        ]
       }
     }
   } else if (error.response?.status) {
-    // Erros HTTP específicos
     switch (error.response.status) {
       case 400:
         errorInfo.title = 'Dados inválidos'
-        errorInfo.message = 'Os dados da rifa contêm informações inválidas.'
+        errorInfo.message = 'Os dados da campanha contêm informações inválidas.'
         break
       case 403:
         errorInfo.title = 'Acesso negado'
-        errorInfo.message = 'Você não tem permissão para ativar esta rifa.'
+        errorInfo.message = 'Você não tem permissão para ativar esta campanha.'
         break
       case 404:
-        errorInfo.title = 'Rifa não encontrada'
-        errorInfo.message = 'A rifa não foi encontrada no servidor.'
+        errorInfo.title = 'Campanha não encontrada'
+        errorInfo.message = 'A campanha não foi encontrada no servidor.'
         break
       case 500:
         errorInfo.title = 'Erro do servidor'
@@ -725,25 +1041,6 @@ const processarErroAtivacao = (error) => {
           'Entre em contato com o suporte se o problema persistir'
         ]
         break
-    }
-    errorInfo.technicalInfo = `HTTP ${error.response.status}: ${error.response.statusText}`
-  } else {
-    // Erro de rede ou conexão
-    errorInfo.title = 'Erro de conexão'
-    errorInfo.message = 'Não foi possível conectar com o servidor.'
-    errorInfo.suggestions = [
-      'Verifique sua conexão com a internet',
-      'Tente novamente em alguns momentos',
-      'Recarregue a página se necessário'
-    ]
-    errorInfo.technicalInfo = error.message
-    errorInfo.actionButton = {
-      text: 'Tentar Novamente',
-      type: 'btn-primary', 
-      action: () => {
-        closeErrorModal()
-        ativarRifa(rifaParaAtivar.value.id)
-      }
     }
   }
 
@@ -2169,268 +2466,5 @@ const handleImageError = (event) => {
   font-size: 0.875rem;
   line-height: 1.5;
   font-weight: 500;
-}
-
-/* ===== FOOTER DO MODAL MELHORADO ===== */
-.modal-footer {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: flex-end;
-  padding: 1.5rem;
-  border-top: 1px solid #f1f5f9;
-  background: linear-gradient(135deg, #fafbfc 0%, #f8fafc 100%);
-  margin:  0;
-}
-
-.modal-footer .btn {
-  min-width: 120px;
-  padding: 0.75rem 1.5rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  border-radius: 10px;
-  transition: all 0.2s ease;
-  border: 1px solid transparent;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-}
-
-.modal-footer .btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.5s ease;
-}
-
-.modal-footer .btn:hover::before {
-  left: 100%;
-}
-
-.modal-footer .btn-outline {
-  background: white;
-  color: #6b7280;
-  border-color: #d1d5db;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.modal-footer .btn-outline:hover:not(:disabled) {
-  background: #f9fafb;
-  border-color: #9ca3af;
-  color: #4b5563;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-}
-
-.modal-footer .btn-success {
-  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-  color: white;
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
-  border: none;
-  position: relative;
-}
-
-.modal-footer .btn-success:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
-}
-
-.modal-footer .btn-success:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-  transform: none !important;
-  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.2);
-}
-
-.modal-footer .btn-success:active {
-  transform: translateY(-1px);
-}
-
-/* ===== ÍCONES DOS BOTÕES ===== */
-.modal-footer .btn svg {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-  transition: transform 0.2s ease;
-}
-
-.modal-footer .btn:hover svg {
-  transform: scale(1.1);
-}
-
-/* ===== ANIMAÇÕES MELHORADAS ===== */
-.modal-container {
-  animation: modalConfirmEnter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-@keyframes modalConfirmEnter {
-  0% {
-    opacity: 0;
-    transform: translateY(50px) scale(0.9);
-  }
-  50% {
-    opacity: 0.8;
-    transform: translateY(-10px) scale(1.02);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* ===== MICRO-INTERAÇÕES ===== */
-.rifa-preview {
-  transition: all 0.3s ease;
-}
-
-.modal-container:hover .rifa-preview {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-/* ===== MELHORIAS VISUAIS ===== */
-.modal-header {
-  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
-  border-bottom: 1px solid #e5e7eb;
-  margin: 0;
-  padding: 1.5rem;
-  border-radius: 16px 16px 0 0;
-}
-
-.modal-body {
-  padding: 1.5rem;
-  background: white;
-}
-
-/* ===== ESTADOS DE LOADING ===== */
-.loading-spinner-small {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top: 2px solid currentColor;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-/* ===== RESPONSIVIDADE MELHORADA ===== */
-@media (max-width: 640px) {
-  .modal-container {
-    margin: 1rem;
-    max-width: calc(100vw - 2rem);
-    border-radius: 12px;
-  }
-
-  .rifa-stats-small {
-    gap: 0.75rem;
-  }
-  
-  .stat-item {
-    font-size: 0.8rem;
-    padding: 0.5rem 0;
-  }
-  
-  .modal-footer {
-    padding: 1.25rem;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  
-  .modal-footer .btn {
-    width: 100%;
-    min-width: auto;
-    justify-content: center;
-  }
-  
-  .activation-warning {
-    flex-direction: column;
-    text-align: center;
-    gap: 0.75rem;
-  }
-  
-  .checklist-item {
-    padding: 0.75rem;
-  }
-  
-  .checklist-item span {
-    font-size: 0.85rem;
-  }
-
-  .confirmation-details {
-    gap: 1rem;
-  }
-
-  .rifa-preview {
-    padding: 1rem;
-  }
-
-  .rifa-preview-info h4 {
-    font-size: 1rem;
-  }
-}
-
-/* ===== ESTADOS DE FOCUS MELHORADOS ===== */
-.modal-footer .btn:focus {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
-}
-
-.modal-close:focus {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
-}
-
-/* ===== TIPOGRAFIA MELHORADA ===== */
-.modal-title h3 {
-  color: #1f2937;
-  margin: 0 0 0.25rem 0;
-  font-size: 1.25rem;
-  font-weight: 700;
-  line-height: 1.3;
-}
-
-.modal-title p {
-  color: #6b7280;
-  margin: 0;
-  font-size: 0.875rem;
-  line-height: 1.4;
-  font-weight: 500;
-}
-
-/* ===== SOMBRAS E PROFUNDIDADE ===== */
-.modal-container {
-  box-shadow: 
-    0 20px 50px rgba(0, 0, 0, 0.15),
-    0 0 0 1px rgba(0, 0, 0, 0.05),
-    0 0 100px rgba(34, 197, 94, 0.1);
-}
-
-/* ===== EFEITOS DE BRILHO ===== */
-.btn-success {
-  position: relative;
-  overflow: hidden;
-}
-
-.btn-success::after {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-  transform: rotate(45deg);
-  transition: all 0.6s ease;
-  opacity: 0;
-}
-
-.btn-success:hover::after {
-  opacity: 1;
-  transform: rotate(45deg) translate(50%, 50%);
 }
 </style>

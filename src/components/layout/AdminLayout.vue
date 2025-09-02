@@ -85,7 +85,7 @@
             active-class="active"
           >
             <span class="nav-icon">🎯</span>
-            <span class="nav-text">Minhas Rifas</span>
+            <span class="nav-text">Minhas Campanhas</span>
           </router-link>
           
           <router-link 
@@ -95,7 +95,7 @@
             active-class="active"
           >
             <span class="nav-icon">➕</span>
-            <span class="nav-text">Criar Rifa</span>
+            <span class="nav-text">Criar Campanha</span>
           </router-link>
           
           <router-link 

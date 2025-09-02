@@ -7,7 +7,7 @@
           <img src="@/assets/logo.png" alt="Ouro Rifa" class="logo-image" />
           <div class="logo-text">
             <h1>Ouro Rifa</h1>
-            <p class="tagline">Sistema completo para suas rifas</p>
+            <p class="tagline">Sistema completo para suas campanhas</p>
           </div>
         </div>
       </div>
@@ -42,7 +42,7 @@
 const features = [
   {
     title: 'Criação Rápida',
-    description: 'Configure sua rifa em poucos minutos',
+    description: 'Configure sua Campanha em poucos minutos',
     icon: 'M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,16.5L6.5,12L7.91,10.59L11,13.67L16.59,8.09L18,9.5L11,16.5Z'
   },
   {
@@ -58,7 +58,7 @@ const features = [
 ]
 
 const stats = [
-  { number: '10K+', label: 'Rifas Criadas' },
+  { number: '10K+', label: 'Campanhas Criadas' },
   { number: '50K+', label: 'Usuários Ativos' },
   { number: 'R$ 2M+', label: 'Arrecadados' }
 ]

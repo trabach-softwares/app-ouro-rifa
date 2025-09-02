@@ -6,14 +6,11 @@
       <div class="page-header">
         <div class="header-content">
           <h1>Vendas</h1>
-          <p>Acompanhe todas as vendas das suas rifas</p>
+          <p>Gerencie e acompanhe todas as vendas das suas campanhas</p>
         </div>
         <div class="header-actions">
-          <button @click="exportarRelatorio" class="btn btn-outline" :disabled="isLoading">
+          <button @click="exportarRelatorio" class="btn btn-primary">
             📊 Exportar Relatório
-          </button>
-          <button @click="handleRefresh" class="btn btn-secondary" :disabled="isLoading">
-            🔄 Atualizar
           </button>
         </div>
       </div>
@@ -21,16 +18,18 @@
       <!-- Filtros e busca -->
       <div class="filters-section">
         <div class="filters">
-          <!-- ✅ ATUALIZAR: Status nos filtros -->
           <select v-model="filtroStatus" @change="aplicarFiltros">
             <option value="">Todos os status</option>
-            <option value="pending">Pendentes</option>
-            <option value="completed">Pagas</option>
-            <option value="failed">Canceladas</option>
+            <option :value="PAYMENT_STATUS.PENDING">Pendentes</option>
+            <option :value="PAYMENT_STATUS.PROCESSING">Processando</option>
+            <option :value="PAYMENT_STATUS.PAID">Pagas</option>
+            <option :value="PAYMENT_STATUS.FAILED">Falhou</option>
+            <option :value="PAYMENT_STATUS.CANCELLED">Canceladas</option>
+            <option :value="PAYMENT_STATUS.EXPIRED">Expiradas</option>
           </select>
           
           <select v-model="filtroRifa" @change="aplicarFiltros">
-            <option value="">Todas as rifas</option>
+            <option value="">Todas as campanhas</option>
             <option v-for="rifa in rifasDisponiveis" :key="rifa.id" :value="rifa.id">
               {{ rifa.title }}
             </option>
@@ -56,7 +55,7 @@
           </select>
         </div>
 
-        <!-- Estatísticas resumo -->
+        <!-- Estatísticas -->
         <div class="stats-summary">
           <div class="stat-item">
             <span class="stat-number">{{ estatisticas.totalVendas }}</span>
@@ -263,7 +262,7 @@
           Tente ajustar os filtros ou busca para encontrar as vendas.
         </p>
         <p v-else>
-          Suas vendas aparecerão aqui quando alguém comprar números das suas rifas.
+          Suas vendas aparecerão aqui quando alguém comprar números das suas campanhas.
         </p>
         
         <div class="empty-actions">
@@ -271,7 +270,7 @@
             🗑️ Limpar Filtros
           </button>
           <router-link to="/rifas/criar" class="btn btn-primary">
-            ➕ Criar Nova Rifa
+            ➕ Criar Nova Campanha
           </router-link>
         </div>
       </div>
@@ -280,7 +279,7 @@
       <div v-if="showDetalhesModal && vendaSelecionada" class="modal-overlay" @click="fecharDetalhes">
         <div class="modal" @click.stop>
           <div class="modal-header">
-            <h3>Detalhes da Venda #{{ vendaSelecionada.id }}</h3>
+            <h3>Detalhes da Venda #{{ vendaSelecionada.orderId || vendaSelecionada.id }}</h3>
             <button @click="fecharDetalhes" class="modal-close">✕</button>
           </div>
           <div class="modal-body">
@@ -293,9 +292,9 @@
               </div>
 
               <div class="detalhe-section">
-                <h4>Rifa</h4>
+                <h4>Campanha</h4>
                 <p><strong>Nome:</strong> {{ vendaSelecionada.raffleName }}</p>
-                <p><strong>ID da Rifa:</strong> {{ vendaSelecionada.raffleId }}</p>
+                <p><strong>ID da Campanha:</strong> {{ vendaSelecionada.raffleId }}</p>
               </div>
 
               <div class="detalhe-section">

@@ -5,11 +5,10 @@
       <!-- Header da página -->
       <div class="page-header">
         <div class="header-content">
-          <h1>Editar Rifa</h1>
-          <p>{{ form.titulo || 'Modifique os dados da sua rifa' }}</p>
+          <h1>Editar Campanha</h1>
+          <p>{{ form.titulo || 'Modifique os dados da sua campanha' }}</p>
         </div>
         <div class="header-actions">
-          <!-- ✅ CORRETO: Botão gerenciar volta para rota principal -->
           <router-link :to="`/rifas/${$route.params.id}`" class="btn btn-outline">
             📊 Gerenciar
           </router-link>
@@ -22,13 +21,13 @@
       <!-- Loading -->
       <div v-if="isLoading" class="loading-container">
         <div class="loading-spinner"></div>
-        <p>Carregando dados da rifa...</p>
+        <p>Carregando dados da campanha...</p>
       </div>
 
       <!-- Erro de carregamento -->
       <div v-else-if="loadError" class="error-container">
         <div class="error-icon">⚠️</div>
-        <h3>Erro ao carregar rifa</h3>
+        <h3>Erro ao carregar campanha</h3>
         <p>{{ loadError }}</p>
         <div class="error-actions">
           <button @click="carregarRifa" class="btn btn-primary">🔄 Tentar Novamente</button>
@@ -39,10 +38,10 @@
       <!-- Formulário de Edição -->
       <form v-else @submit.prevent="salvarRifa" class="edit-form">
         
-        <!-- Status atual da rifa -->
+        <!-- Status atual da campanha -->
         <div class="status-card">
           <div class="status-header">
-            <h3>Status da Rifa</h3>
+            <h3>Status da Campanha</h3>
             <span :class="['status-badge', form.status]">
               {{ getStatusText(form.status) }}
             </span>
@@ -50,7 +49,7 @@
           <div v-if="temVendas" class="status-warning">
             <div class="warning-icon">⚠️</div>
             <div class="warning-content">
-              <strong>Atenção:</strong> Esta rifa já possui {{ form.numerosVendidos }} número(s) vendido(s). 
+              <strong>Atenção:</strong> Esta campanha já possui {{ form.numerosVendidos }} número(s) vendido(s). 
               Alguns campos não podem ser alterados para manter a integridade das vendas.
             </div>
           </div>
@@ -64,7 +63,7 @@
           
           <div class="form-grid">
             <div class="form-group full-width">
-              <label for="titulo">Título da Rifa *</label>
+              <label for="titulo">Título da Campanha *</label>
               <input
                 id="titulo"
                 v-model="form.titulo"
@@ -78,7 +77,7 @@
             </div>
 
             <div class="form-group full-width">
-              <label for="descricao">Descrição da Rifa *</label>
+              <label for="descricao">Descrição da Campanha *</label>
               <textarea
                 id="descricao"
                 v-model="form.descricao"
@@ -344,7 +343,7 @@
                 class="btn btn-success"
                 :disabled="isUpdatingStatus"
               >
-                🚀 Publicar Rifa
+                🚀 Publicar Campanha
               </button>
               
               <button 
@@ -354,7 +353,7 @@
                 class="btn btn-warning"
                 :disabled="isUpdatingStatus"
               >
-                ⏸️ Pausar Rifa
+                ⏸️ Pausar Campanha
               </button>
               
               <button 
@@ -364,17 +363,17 @@
                 class="btn btn-success"
                 :disabled="isUpdatingStatus"
               >
-                ▶️ Reativar Rifa
+                ▶️ Reativar Campanha
               </button>
               
               <button 
-                v-if="!['finished', 'cancelled'].includes(form.status)"
+                v-if="['draft', 'paused', 'active'].includes(form.status)"
                 type="button"
                 @click="updateStatus('cancelled')"
                 class="btn btn-danger"
                 :disabled="isUpdatingStatus"
               >
-                🗑️ Cancelar Rifa
+                ❌ Cancelar Campanha
               </button>
             </div>
           </div>
@@ -490,7 +489,7 @@ const carregarRifa = async () => {
     loadError.value = ''
     const rifaId = route.params.id
     
-    console.log('🎯 Carregando rifa para edição:', rifaId)
+    console.log('🎯 Carregando campanha para edição:', rifaId)
     
     const response = await rifasAPI.get(rifaId)
     console.log('📥 Resposta da API:', response.data)
@@ -507,10 +506,10 @@ const carregarRifa = async () => {
     }
     
     if (!rifaData?.id) {
-      throw new Error('Dados da rifa não encontrados')
+      throw new Error('Dados da campanha não encontrados')
     }
     
-    console.log('✅ Dados da rifa:', rifaData)
+    console.log('✅ Dados da campanha:', rifaData)
     
     // Mapear dados para o formulário
     form.value = {
@@ -536,13 +535,13 @@ const carregarRifa = async () => {
     console.log('✅ Formulário preenchido:', form.value)
     
   } catch (error) {
-    console.error('💥 Erro ao carregar rifa:', error)
-    loadError.value = error.message || 'Erro ao carregar dados da rifa'
+    console.error('💥 Erro ao carregar campanha:', error)
+    loadError.value = error.message || 'Erro ao carregar dados da campanha'
     
     if (error.response?.status === 404) {
-      loadError.value = 'Rifa não encontrada'
+      loadError.value = 'Campanha não encontrada'
     } else if (error.response?.status === 403) {
-      loadError.value = 'Você não tem permissão para editar esta rifa'
+      loadError.value = 'Você não tem permissão para editar esta campanha'
     }
   } finally {
     isLoading.value = false
@@ -658,14 +657,14 @@ const salvarRifa = async () => {
       await rifasAPI.update(form.value.id, dadosParaEnvio)
     }
     
-    showMessage('✅ Rifa atualizada com sucesso!', 'success')
+    showMessage('✅ Campanha atualizada com sucesso!', 'success')
     
     // Recarregar dados
     await carregarRifa()
     
   } catch (error) {
     console.error('💥 Erro ao salvar:', error)
-    const errorMessage = error.response?.data?.message || error.message || 'Erro ao salvar rifa'
+    const errorMessage = error.response?.data?.message || error.message || 'Erro ao salvar campanha'
     showMessage('❌ ' + errorMessage, 'error')
   } finally {
     isSaving.value = false
@@ -675,9 +674,9 @@ const salvarRifa = async () => {
 // Atualizar status
 const updateStatus = async (novoStatus) => {
   const confirmacoes = {
-    active: 'Tem certeza que deseja ATIVAR esta rifa? Ela ficará disponível para vendas.',
-    paused: 'Tem certeza que deseja PAUSAR esta rifa? As vendas serão interrompidas.',
-    cancelled: 'ATENÇÃO: Tem certeza que deseja CANCELAR esta rifa? Esta ação não pode ser desfeita!'
+    active: 'Tem certeza que deseja ATIVAR esta campanha? Ela ficará disponível para vendas.',
+    paused: 'Tem certeza que deseja PAUSAR esta campanha? As vendas serão interrompidas.',
+    cancelled: 'ATENÇÃO: Tem certeza que deseja CANCELAR esta campanha? Esta ação não pode ser desfeita!'
   }
   
   if (!confirm(confirmacoes[novoStatus] || `Alterar status para ${getStatusText(novoStatus)}?`)) {
@@ -691,9 +690,9 @@ const updateStatus = async (novoStatus) => {
     form.value.status = novoStatus
     
     const mensagens = {
-      active: '🚀 Rifa ativada com sucesso!',
-      paused: '⏸️ Rifa pausada com sucesso!',
-      cancelled: '🗑️ Rifa cancelada'
+      active: '🚀 Campanha ativada com sucesso!',
+      paused: '⏸️ Campanha pausada com sucesso!',
+      cancelled: '🗑️ Campanha cancelada'
     }
     
     showMessage(mensagens[novoStatus] || 'Status atualizado!', 'success')
