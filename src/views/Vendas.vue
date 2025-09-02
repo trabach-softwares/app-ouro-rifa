@@ -387,6 +387,79 @@
           </div>
         </div>
       </div>
+
+      <!-- ✅ NOVO: Modal de Erro -->
+      <div v-if="showErrorModal" class="modal-overlay" @click="closeErrorModal">
+        <div class="modal-container error-modal" @click.stop>
+          <div class="modal-header">
+            <div class="modal-icon error">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"/>
+              </svg>
+            </div>
+            <div class="modal-title">
+              <h3>{{ errorModalData.title }}</h3>
+              <p>Detalhes sobre o erro ocorrido</p>
+            </div>
+            <button @click="closeErrorModal" class="modal-close">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <div class="error-details">
+              <!-- ✅ Erro principal em destaque -->
+              <div class="error-highlight">
+                <div class="error-icon-main">⚠️</div>
+                <div class="error-content-main">
+                  <h4>{{ errorModalData.title }}</h4>
+                  <p class="error-message-main">{{ errorModalData.message }}</p>
+                </div>
+              </div>
+
+              <!-- ✅ Detalhes técnicos -->
+              <div v-if="errorModalData.technicalInfo" class="technical-error-card">
+                <div class="technical-header">
+                  <div class="technical-icon">🔍</div>
+                  <h5>Detalhes Técnicos</h5>
+                </div>
+                <div class="technical-content">
+                  <div class="error-code">{{ errorModalData.technicalInfo }}</div>
+                </div>
+              </div>
+
+              <!-- ✅ Sugestões de solução -->
+              <div v-if="errorModalData.suggestions?.length" class="error-solutions">
+                <div class="solutions-header">
+                  <div class="solutions-icon">💡</div>
+                  <h5>Como resolver</h5>
+                </div>
+                <ul class="solutions-list">
+                  <li v-for="(suggestion, index) in errorModalData.suggestions" :key="index">
+                    <span class="solution-number">{{ index + 1 }}</span>
+                    <span class="solution-text">{{ suggestion }}</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button @click="closeErrorModal" class="btn btn-outline">
+              Fechar
+            </button>
+            <button 
+              v-if="errorModalData.actionButton"
+              @click="errorModalData.actionButton.action" 
+              :class="['btn', errorModalData.actionButton.type]"
+            >
+              {{ errorModalData.actionButton.text }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </AdminLayout>
 </template>
@@ -440,6 +513,16 @@ const pagination = ref({
 // Modal de detalhes
 const showDetalhesModal = ref(false)
 const vendaSelecionada = ref(null)
+
+// ✅ ADICIONAR: Estados para modal de erro
+const showErrorModal = ref(false)
+const errorModalData = ref({
+  title: '',
+  message: '',
+  suggestions: [],
+  technicalInfo: '',
+  actionButton: null
+})
 
 // Debounce para busca
 let searchTimeout = null
@@ -624,6 +707,306 @@ const fecharDetalhes = () => {
   showDetalhesModal.value = false
 }
 
+// ✅ NOVA: Função para processar erros da API
+const processarErroAPI = (error, acao = 'realizar operação') => {
+  let errorInfo = {
+    title: 'Erro na operação',
+    message: 'Ocorreu um erro inesperado.',
+    suggestions: [],
+    technicalInfo: '',
+    actionButton: null
+  }
+
+  console.error('💥 Processando erro da API:', error)
+
+  if (error.response?.data) {
+    const errorData = error.response.data
+    const message = errorData.message?.toLowerCase() || ''
+    
+    // ✅ TRATAR erros específicos conforme a API
+    if (errorData.message === 'Acesso negado' || message.includes('acesso negado')) {
+      errorInfo = {
+        title: 'Acesso Negado',
+        message: 'Você não tem permissão para realizar esta operação.',
+        suggestions: [
+          'Verifique se você tem as permissões necessárias',
+          'Entre em contato com o administrador se necessário',
+          'Faça logout e login novamente para atualizar suas permissões'
+        ],
+        technicalInfo: errorData.message,
+        actionButton: {
+          text: 'Fazer Logout',
+          type: 'btn-warning',
+          action: () => {
+            closeErrorModal()
+            authStore.logout()
+            router.push('/login')
+          }
+        }
+      }
+    } else if (message.includes('não autorizado') || message.includes('unauthorized')) {
+      errorInfo = {
+        title: 'Não Autorizado',
+        message: 'Sua sessão expirou ou você não está autenticado.',
+        suggestions: [
+          'Faça login novamente',
+          'Verifique se suas credenciais estão corretas',
+          'Entre em contato com o suporte se o problema persistir'
+        ],
+        technicalInfo: errorData.message,
+        actionButton: {
+          text: 'Ir para Login',
+          type: 'btn-primary',
+          action: () => {
+            closeErrorModal()
+            router.push('/login')
+          }
+        }
+      }
+    } else if (message.includes('pagamento não encontrado') || message.includes('payment not found')) {
+      errorInfo = {
+        title: 'Pagamento Não Encontrado',
+        message: 'O pagamento para este ticket não foi encontrado no sistema.',
+        suggestions: [
+          'O ticket pode ter sido criado antes da integração com pagamentos',
+          'O pagamento pode ter sido processado por outro método',
+          'Pode ter havido um problema na sincronização de dados',
+          'Verifique o status diretamente no sistema de pagamentos'
+        ],
+        technicalInfo: errorData.message,
+        actionButton: {
+          text: 'Atualizar Lista',
+          type: 'btn-primary',
+          action: () => {
+            closeErrorModal()
+            carregarVendas(pagination.value.currentPage)
+          }
+        }
+      }
+    } else if (message.includes('token') && message.includes('inválido')) {
+      errorInfo = {
+        title: 'Token Inválido',
+        message: 'Seu token de autenticação é inválido.',
+        suggestions: [
+          'Faça login novamente',
+          'Limpe os dados do navegador se necessário'
+        ],
+        technicalInfo: errorData.message,
+        actionButton: {
+          text: 'Fazer Login',
+          type: 'btn-primary',
+          action: () => {
+            closeErrorModal()
+            authStore.logout()
+            router.push('/login')
+          }
+        }
+      }
+    } else if (message.includes('não encontrado') || message.includes('not found')) {
+      errorInfo = {
+        title: 'Dados Não Encontrados',
+        message: 'Os dados solicitados não foram encontrados.',
+        suggestions: [
+          'Verifique se os filtros estão corretos',
+          'Atualize a página e tente novamente',
+          'Os dados podem ter sido removidos recentemente'
+        ],
+        technicalInfo: errorData.message,
+        actionButton: {
+          text: 'Atualizar Página',
+          type: 'btn-primary',
+          action: () => {
+            closeErrorModal()
+            window.location.reload()
+          }
+        }
+      }
+    } else if (message.includes('limite') || message.includes('rate limit')) {
+      errorInfo = {
+        title: 'Limite de Requisições',
+        message: 'Você atingiu o limite de requisições permitidas.',
+        suggestions: [
+          'Aguarde alguns minutos antes de tentar novamente',
+          'Reduza a frequência de atualizações',
+          'Entre em contato com o suporte se necessário'
+        ],
+        technicalInfo: errorData.message,
+        actionButton: {
+          text: 'Tentar em 1 Minuto',
+          type: 'btn-secondary',
+          action: () => {
+            closeErrorModal()
+            setTimeout(() => {
+              carregarVendas(pagination.value.currentPage)
+            }, 60000)
+          }
+        }
+      }
+    } else if (message.includes('servidor') || message.includes('internal server')) {
+      errorInfo = {
+        title: 'Erro do Servidor',
+        message: 'Ocorreu um erro interno no servidor.',
+        suggestions: [
+          'Tente novamente em alguns minutos',
+          'Verifique sua conexão com a internet',
+          'Entre em contato com o suporte se o problema persistir'
+        ],
+        technicalInfo: errorData.message,
+        actionButton: {
+          text: 'Tentar Novamente',
+          type: 'btn-primary',
+          action: () => {
+            closeErrorModal()
+            carregarVendas(pagination.value.currentPage)
+          }
+        }
+      }
+    } else {
+      // Erro genérico da API
+      errorInfo.title = `Erro ao ${acao}`
+      errorInfo.message = errorData.message || 'Ocorreu um erro inesperado na comunicação com o servidor.'
+      errorInfo.technicalInfo = JSON.stringify(errorData, null, 2)
+      errorInfo.suggestions = [
+        'Verifique sua conexão com a internet',
+        'Tente novamente em alguns momentos',
+        'Entre em contato com o suporte se o problema persistir'
+      ]
+      errorInfo.actionButton = {
+        text: 'Tentar Novamente',
+        type: 'btn-primary',
+        action: () => {
+          closeErrorModal()
+          carregarVendas(pagination.value.currentPage)
+        }
+      }
+    }
+  } else if (error.response?.status) {
+    // Erros HTTP específicos
+    switch (error.response.status) {
+      case 400:
+        errorInfo = {
+          title: 'Requisição Inválida',
+          message: 'Os dados enviados são inválidos.',
+          suggestions: [
+            'Verifique se todos os campos estão preenchidos corretamente',
+            'Confirme se os filtros estão configurados adequadamente'
+          ],
+          technicalInfo: `HTTP 400: ${error.response.statusText}`,
+          actionButton: null
+        }
+        break
+      case 401:
+        errorInfo = {
+          title: 'Não Autenticado',
+          message: 'Você precisa fazer login para acessar esta funcionalidade.',
+          suggestions: [
+            'Faça login novamente',
+            'Verifique suas credenciais'
+          ],
+          technicalInfo: `HTTP 401: ${error.response.statusText}`,
+          actionButton: {
+            text: 'Ir para Login',
+            type: 'btn-primary',
+            action: () => {
+              closeErrorModal()
+              router.push('/login')
+            }
+          }
+        }
+        break
+      case 403:
+        errorInfo = {
+          title: 'Acesso Proibido',
+          message: 'Você não tem permissão para realizar esta operação.',
+          suggestions: [
+            'Verifique se você tem as permissões necessárias',
+            'Entre em contato com o administrador'
+          ],
+          technicalInfo: `HTTP 403: ${error.response.statusText}`,
+          actionButton: null
+        }
+        break
+      case 404:
+        errorInfo = {
+          title: 'Não Encontrado',
+          message: 'O recurso solicitado não foi encontrado.',
+          suggestions: [
+            'Verifique se a URL está correta',
+            'O recurso pode ter sido removido',
+            'Atualize a página e tente novamente'
+          ],
+          technicalInfo: `HTTP 404: ${error.response.statusText}`,
+          actionButton: {
+            text: 'Voltar ao Início',
+            type: 'btn-primary',
+            action: () => {
+              closeErrorModal()
+              router.push('/dashboard')
+            }
+          }
+        }
+        break
+      case 500:
+        errorInfo = {
+          title: 'Erro Interno do Servidor',
+          message: 'Ocorreu um erro interno no servidor.',
+          suggestions: [
+            'Tente novamente em alguns minutos',
+            'Entre em contato com o suporte se persistir'
+          ],
+          technicalInfo: `HTTP 500: ${error.response.statusText}`,
+          actionButton: {
+            text: 'Tentar Novamente',
+            type: 'btn-primary',
+            action: () => {
+              closeErrorModal()
+              carregarVendas(pagination.value.currentPage)
+            }
+          }
+        }
+        break
+      default:
+        errorInfo.technicalInfo = `HTTP ${error.response.status}: ${error.response.statusText}`
+    }
+  } else {
+    // Erro de rede ou conexão
+    errorInfo = {
+      title: 'Erro de Conexão',
+      message: 'Não foi possível conectar com o servidor.',
+      suggestions: [
+        'Verifique sua conexão com a internet',
+        'Tente novamente em alguns momentos',
+        'Verifique se o servidor está funcionando'
+      ],
+      technicalInfo: error.message || 'Erro de rede',
+      actionButton: {
+        text: 'Tentar Novamente',
+        type: 'btn-primary',
+        action: () => {
+          closeErrorModal()
+          carregarVendas(pagination.value.currentPage)
+        }
+      }
+    }
+  }
+
+  // ✅ MOSTRAR o modal de erro
+  errorModalData.value = errorInfo
+  showErrorModal.value = true
+}
+
+// ✅ FUNÇÃO para fechar modal de erro
+const closeErrorModal = () => {
+  showErrorModal.value = false
+  errorModalData.value = {
+    title: '',
+    message: '',
+    suggestions: [],
+    technicalInfo: '',
+    actionButton: null
+  }
+}
+
 // ✅ MELHORAR: Confirmar venda com tratamento específico de erros
 const confirmarVenda = async (ticketId) => {
   try {
@@ -631,168 +1014,44 @@ const confirmarVenda = async (ticketId) => {
     
     const venda = vendas.value.find(v => v.id === ticketId)
     if (!venda) {
-      throw new Error('Venda não encontrada na lista local')
+      // ✅ USAR processarErroAPI em vez de throw
+      processarErroAPI({ message: 'Venda não encontrada na lista local' }, 'encontrar venda')
+      return
     }
     
     if (!podeConfirmar(venda.paymentStatus)) {
-      throw new Error(`Não é possível confirmar pagamento com status "${getStatusText(venda.paymentStatus)}"`)
+      // ✅ USAR processarErroAPI em vez de throw
+      processarErroAPI({ 
+        message: `Não é possível confirmar pagamento com status "${getStatusText(venda.paymentStatus)}"` 
+      }, 'confirmar pagamento')
+      return
     }
     
     console.log('✅ Confirmando pagamento do ticket:', ticketId)
     
     // Usar API de pagamentos para confirmar
     const transactionId = `MANUAL_CONFIRM_${Date.now()}`
+    await paymentsAPI.confirmPayment(ticketId, transactionId)
     
-    try {
-      await paymentsAPI.confirmPayment(ticketId, transactionId)
-      
-      // Atualizar venda local apenas se a API retornou sucesso
-      venda.paymentStatus = PAYMENT_STATUS.PAID
-      
-      showMessage('✅ Pagamento confirmado com sucesso!', 'success')
-      
-      if (showDetalhesModal.value && vendaSelecionada.value?.id === ticketId) {
-        // Atualizar também os dados do modal
-        vendaSelecionada.value.paymentStatus = PAYMENT_STATUS.PAID
-        fecharDetalhes()
-      }
-      
-    } catch (apiError) {
-      console.error('💥 Erro na API de confirmação:', apiError)
-      
-      // ✅ TRATAR erros específicos da API
-      if (apiError.response?.data) {
-        const errorData = apiError.response.data
-        
-        // Tratar erro específico de "Pagamento não encontrado"
-        if (errorData.message === 'Pagamento não encontrado' || 
-            errorData.message?.includes('não encontrado')) {
-          
-          showMessage(
-            `❌ Não foi possível confirmar o pagamento:\n\n` +
-            `💡 O pagamento para este ticket não foi encontrado no sistema.\n\n` +
-            `🔍 Possíveis causas:\n` +
-            `• O ticket foi criado antes da integração com pagamentos\n` +
-            `• O pagamento foi processado por outro método\n` +
-            `• Houve um problema na sincronização de dados\n\n` +
-            `💡 Sugestão: Verifique o status diretamente no sistema de pagamentos ou contate o suporte.`,
-            'error'
-          )
-          
-          // ✅ IMPORTANTE: Não atualizar o status local se o pagamento não existe
-          return
-        }
-        
-        // Tratar outros erros específicos
-        if (errorData.message?.includes('já confirmado') || 
-            errorData.message?.includes('already confirmed')) {
-          
-          // Se já está confirmado, atualizar o status local
-          venda.paymentStatus = PAYMENT_STATUS.PAID
-          if (vendaSelecionada.value?.id === ticketId) {
-            vendaSelecionada.value.paymentStatus = PAYMENT_STATUS.PAID
-          }
-          
-          showMessage('ℹ️ Este pagamento já estava confirmado no sistema.', 'info')
-          return
-        }
-        
-        if (errorData.message?.includes('expirado') || 
-            errorData.message?.includes('expired')) {
-          
-          showMessage(
-            `⏰ Não foi possível confirmar o pagamento:\n\n` +
-            `O prazo para confirmação deste pagamento expirou.\n\n` +
-            `💡 Para resolver: Entre em contato com o comprador para gerar um novo pagamento.`,
-            'warning'
-          )
-          return
-        }
-        
-        if (errorData.message?.includes('cancelado') || 
-            errorData.message?.includes('cancelled')) {
-          
-          // Atualizar status local para cancelado
-          venda.paymentStatus = PAYMENT_STATUS.CANCELLED
-          if (vendaSelecionada.value?.id === ticketId) {
-            vendaSelecionada.value.paymentStatus = PAYMENT_STATUS.CANCELLED
-          }
-          
-          showMessage(
-            `❌ Este pagamento foi cancelado e não pode ser confirmado.\n\n` +
-            `💡 Para resolver: O comprador precisa fazer uma nova compra.`,
-            'error'
-          )
-          return
-        }
-        
-        // Erro genérico da API com detalhes
-        const errorMessage = errorData.message || 'Erro desconhecido na API'
-        showMessage(
-          `❌ Erro ao confirmar pagamento:\n\n${errorMessage}\n\n` +
-          `💡 Tente novamente em alguns momentos ou contate o suporte se o problema persistir.`,
-          'error'
-        )
-        return
-      }
-      
-      // Erro de conexão ou outros erros técnicos
-      if (apiError.code === 'NETWORK_ERROR' || !apiError.response) {
-        showMessage(
-          `🌐 Erro de conexão ao confirmar pagamento:\n\n` +
-          `Não foi possível conectar com o servidor.\n\n` +
-          `💡 Verifique sua conexão e tente novamente.`,
-          'error'
-        )
-        return
-      }
-      
-      // Erro HTTP genérico
-      if (apiError.response?.status) {
-        const statusMessages = {
-          400: 'Dados inválidos enviados para confirmação',
-          401: 'Sessão expirada. Faça login novamente',
-          403: 'Você não tem permissão para confirmar este pagamento',
-          404: 'Pagamento não encontrado no sistema',
-          500: 'Erro interno do servidor',
-          503: 'Serviço temporariamente indisponível'
-        }
-        
-        const statusMessage = statusMessages[apiError.response.status] || 
-                             `Erro HTTP ${apiError.response.status}`
-        
-        showMessage(
-          `❌ ${statusMessage}\n\n` +
-          `💡 Tente novamente em alguns momentos.`,
-          'error'
-        )
-        return
-      }
-      
-      // Erro completamente desconhecido
-      showMessage(
-        `❌ Erro inesperado ao confirmar pagamento:\n\n` +
-        `${apiError.message || 'Erro desconhecido'}\n\n` +
-        `💡 Entre em contato com o suporte técnico.`,
-        'error'
-      )
-      throw apiError
+    // Atualizar venda local apenas se a API retornou sucesso
+    venda.paymentStatus = PAYMENT_STATUS.PAID
+    
+    showMessage('✅ Pagamento confirmado com sucesso!', 'success')
+    
+    if (showDetalhesModal.value && vendaSelecionada.value?.id === ticketId) {
+      vendaSelecionada.value.paymentStatus = PAYMENT_STATUS.PAID
+      fecharDetalhes()
     }
     
-    // Recarregar dados para garantir sincronização (apenas se confirmação foi bem-sucedida)
+    // Recarregar dados para garantir sincronização
     await carregarVendas(pagination.value.currentPage)
     
   } catch (error) {
-    console.error('💥 Erro geral ao confirmar pagamento:', error)
+    console.error('💥 Erro ao confirmar pagamento:', error)
     
-    // Se chegou aqui, é um erro não tratado acima
-    if (!error.response) {
-      showMessage(
-        `❌ Erro inesperado:\n\n${error.message || 'Erro desconhecido'}\n\n` +
-        `💡 Recarregue a página e tente novamente.`,
-        'error'
-      )
-    }
+    // ✅ SEMPRE usar processarErroAPI para mostrar o modal
+    processarErroAPI(error, 'confirmar pagamento')
+    
   } finally {
     isUpdatingStatus.value = false
   }
@@ -802,17 +1061,14 @@ const confirmarVenda = async (ticketId) => {
 const cancelarVenda = async (ticketId) => {
   const venda = vendas.value.find(v => v.id === ticketId)
   if (!venda) {
-    showMessage('❌ Venda não encontrada na lista local', 'error')
+    processarErroAPI({ message: 'Venda não encontrada na lista local' }, 'encontrar venda')
     return
   }
   
   if (!podeCancelar(venda.paymentStatus)) {
-    showMessage(
-      `❌ Não é possível cancelar:\n\n` +
-      `Esta venda tem status "${getStatusText(venda.paymentStatus)}" e não pode ser cancelada.\n\n` +
-      `💡 Apenas vendas pendentes ou em processamento podem ser canceladas.`,
-      'error'
-    )
+    processarErroAPI({ 
+      message: `Esta venda tem status "${getStatusText(venda.paymentStatus)}" e não pode ser cancelada.` 
+    }, 'cancelar venda')
     return
   }
   
@@ -829,77 +1085,25 @@ const cancelarVenda = async (ticketId) => {
     isUpdatingStatus.value = true
     
     console.log('❌ Cancelando ticket:', ticketId)
+    await ticketsAPI.cancelTicket(ticketId)
     
-    try {
-      // Usar API de tickets para cancelar
-      await ticketsAPI.cancelTicket(ticketId)
-      
-      // Atualizar venda local apenas se a API retornou sucesso
-      venda.paymentStatus = PAYMENT_STATUS.CANCELLED
-      if (vendaSelecionada.value?.id === ticketId) {
-        vendaSelecionada.value.paymentStatus = PAYMENT_STATUS.CANCELLED
-      }
-      
-      showMessage('✅ Venda cancelada com sucesso!', 'warning')
-      
-    } catch (apiError) {
-      console.error('💥 Erro na API de cancelamento:', apiError)
-      
-      // ✅ TRATAR erros específicos da API
-      if (apiError.response?.data?.message) {
-        const errorMessage = apiError.response.data.message
-        
-        if (errorMessage.includes('não encontrado')) {
-          showMessage(
-            `❌ Ticket não encontrado:\n\n` +
-            `O ticket não foi encontrado no sistema.\n\n` +
-            `💡 Pode ter sido removido ou já processado.`,
-            'error'
-          )
-          return
-        }
-        
-        if (errorMessage.includes('já cancelado')) {
-          // Se já está cancelado, atualizar status local
-          venda.paymentStatus = PAYMENT_STATUS.CANCELLED
-          if (vendaSelecionada.value?.id === ticketId) {
-            vendaSelecionada.value.paymentStatus = PAYMENT_STATUS.CANCELLED
-          }
-          showMessage('ℹ️ Esta venda já estava cancelada.', 'info')
-          return
-        }
-        
-        showMessage(
-          `❌ Erro ao cancelar:\n\n${errorMessage}\n\n` +
-          `💡 Tente novamente ou contate o suporte.`,
-          'error'
-        )
-        return
-      }
-      
-      // Erro genérico
-      showMessage(
-        `❌ Erro ao cancelar venda:\n\n` +
-        `${apiError.message || 'Erro desconhecido'}\n\n` +
-        `💡 Tente novamente em alguns momentos.`,
-        'error'
-      )
-      throw apiError
+    // Atualizar venda local apenas se a API retornou sucesso
+    venda.paymentStatus = PAYMENT_STATUS.CANCELLED
+    if (vendaSelecionada.value?.id === ticketId) {
+      vendaSelecionada.value.paymentStatus = PAYMENT_STATUS.CANCELLED
     }
+    
+    showMessage('✅ Venda cancelada com sucesso!', 'warning')
     
     // Recarregar dados para garantir sincronização
     await carregarVendas(pagination.value.currentPage)
     
   } catch (error) {
-    console.error('💥 Erro geral ao cancelar venda:', error)
+    console.error('💥 Erro ao cancelar venda:', error)
     
-    if (!error.response) {
-      showMessage(
-        `❌ Erro inesperado:\n\n${error.message || 'Erro desconhecido'}\n\n` +
-        `💡 Recarregue a página e tente novamente.`,
-        'error'
-      )
-    }
+    // ✅ USAR nova função de processamento de erro
+    processarErroAPI(error, 'cancelar venda')
+    
   } finally {
     isUpdatingStatus.value = false
   }
@@ -1067,6 +1271,13 @@ const carregarVendas = async (page = 1) => {
     } catch (ticketsError) {
       console.warn('⚠️ Endpoint /tickets/sales/list falhou, tentando fallback...', ticketsError)
       
+      // Se é erro de autenticação/autorização, não tentar fallback
+      if (ticketsError.response?.status === 401 || 
+          ticketsError.response?.status === 403 ||
+          ticketsError.response?.data?.message === 'Acesso negado') {
+        throw ticketsError
+      }
+      
       // Fallback 1: Usar tickets por rifa se filtro especificado
       if (filtroRifa.value) {
         response = await ticketsAPI.getRaffleTickets(filtroRifa.value, params)
@@ -1205,6 +1416,10 @@ const carregarVendas = async (page = 1) => {
     
   } catch (err) {
     console.error('💥 Erro ao carregar vendas:', err)
+    
+    // ✅ USAR função de processamento de erro que mostra o modal
+    processarErroAPI(err, 'carregar vendas')
+    
     error.value = err.message || 'Erro ao carregar vendas'
     vendas.value = []
     
@@ -1218,15 +1433,6 @@ const carregarVendas = async (page = 1) => {
       hasPrev: false
     }
     
-    // Tratamento específico de erros
-    if (err.response?.status === 401) {
-      showMessage('Sessão expirada. Redirecionando para login...', 'error')
-      setTimeout(() => {
-        router.push('/login')
-      }, 2000)
-    } else {
-      showMessage('Erro ao carregar vendas: ' + (err.message || 'Erro desconhecido'), 'error')
-    }
   } finally {
     isLoading.value = false
   }
@@ -1902,41 +2108,337 @@ onMounted(async () => {
   margin-top: 1.5rem;
 }
 
-/* ✅ MELHORAR: Tooltips para botões */
-.action-btn {
-  position: relative;
+/* ===== MODAL DE ERRO ===== */
+.error-modal {
+  max-width: 600px;
+  border: 1px solid #fecaca;
+  box-shadow: 0 20px 40px rgba(239, 68, 68, 0.15);
 }
 
-.action-btn[title]:hover::after {
-  content: attr(title);
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.9);
-  color: white;
-  padding: 0.5rem;
+.modal-container {
+  background: white;
+  border-radius: 16px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: modalErrorEnter 0.3s ease;
+}
+
+@keyframes modalErrorEnter {
+  from { 
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+}
+
+.modal-icon.error {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  color: #dc2626;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #f87171;
+  flex-shrink: 0;
+}
+
+.modal-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.modal-title h3 {
+  color: #dc2626;
+  margin: 0 0 0.25rem 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.modal-title p {
+  color: #b91c1c;
+  margin: 0;
+  font-size: 0.875rem;
+  opacity: 0.8;
+}
+
+.modal-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.modal-close:hover {
+  background: white;
+  color: #374151;
+}
+
+/* ===== CORPO DO ERRO ===== */
+.modal-body {
+  padding: 1.5rem;
+}
+
+.error-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ===== ERRO PRINCIPAL ===== */
+.error-highlight {
+  display: flex;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border: 1px solid #fca5a5;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.08);
+}
+
+.error-icon-main {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.error-content-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.error-content-main h4 {
+  color: #dc2626;
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.error-message-main {
+  color: #b91c1c;
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* ===== DETALHES TÉCNICOS ===== */
+.technical-error-card {
+  background: white;
+  border: 1px solid #e11d48;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.technical-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
+  border-bottom: 1px solid #f9a8d4;
+}
+
+.technical-icon {
+  font-size: 1.1rem;
+}
+
+.technical-header h5 {
+  margin: 0;
+  color: #be185d;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.technical-content {
+  padding: 1rem;
+}
+
+.error-code {
+  background: #1f2937;
+  color: #e5e7eb;
+  padding: 0.75rem;
   border-radius: 6px;
-  font-size: 0.75rem;
-  white-space: pre-line;
-  z-index: 1000;
-  max-width: 200px;
-  text-align: center;
-  margin-bottom: 5px;
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  word-break: break-all;
+  overflow-x: auto;
 }
 
-/* ✅ MELHORAR: Estados de loading nos botões */
-.action-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-  transform: none;
+/* ===== SOLUÇÕES ===== */
+.error-solutions {
+  background: white;
+  border: 1px solid #22c55e;
+  border-radius: 10px;
+  overflow: hidden;
 }
 
-.btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-  transform: none;
+.solutions-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border-bottom: 1px solid #86efac;
 }
 
-/* ... resto dos estilos mantidos ... */
+.solutions-icon {
+  font-size: 1.1rem;
+}
+
+.solutions-header h5 {
+  margin: 0;
+  color: #15803d;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.solutions-list {
+  list-style: none;
+  margin: 0;
+  padding: 1rem;
+}
+
+.solutions-list li {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border-left: 3px solid #22c55e;
+}
+
+.solutions-list li:last-child {
+  margin-bottom: 0;
+}
+
+.solution-number {
+  background: #22c55e;
+  color: white;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.solution-text {
+  color: #374151;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+/* ===== FOOTER DO MODAL ===== */
+.modal-footer {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  padding: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.modal-footer .btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+  font-size: 0.875rem;
+}
+
+.btn.btn-outline {
+  background: white;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+}
+
+.btn.btn-outline:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.btn.btn-primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.btn.btn-primary:hover {
+  background: #2563eb;
+}
+
+.btn.btn-warning {
+  background: #f59e0b;
+  color: white;
+}
+
+.btn.btn-warning:hover {
+  background: #d97706;
+}
+
+.btn.btn-secondary {
+  background: #6b7280;
+  color: white;
+}
+
+.btn.btn-secondary:hover {
+  background: #4b5563;
+}
+
+/* ===== RESPONSIVIDADE ===== */
+@media (max-width: 640px) {
+  .error-modal {
+    margin: 1rem;
+    max-width: calc(100vw - 2rem);
+  }
+  
+  .error-highlight {
+    flex-direction: column;
+    text-align: center;
+    gap: 0.75rem;
+  }
+  
+  .modal-footer {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .modal-footer .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
 </style>
