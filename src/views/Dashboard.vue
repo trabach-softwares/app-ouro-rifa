@@ -79,7 +79,7 @@
           </div>
         </div>
 
-        <!-- ✅ CORRIGIDO: Rifas Recentes sem duplicação -->
+        <!-- ✅ CORRIGIDO: Rifas Recentes com navegação funcional -->
         <div class="content-card">
           <div class="card-header">
             <h2>Rifas Recentes</h2>
@@ -93,7 +93,7 @@
               v-for="rifa in rifasRecentes" 
               :key="rifa.id"
               class="rifa-item"
-              @click="$router.push(`/rifas/${rifa.id}/gerenciar`)"
+              @click="navegarParaRifa(rifa)"
             >
               <!-- Mobile Layout -->
               <div class="rifa-mobile mobile-only">
@@ -177,10 +177,12 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { reportsAPI, rifasAPI } from '@/service/api'
 import AdminLayout from '@/components/layout/AdminLayout.vue'
 
+const router = useRouter()
 const authStore = useAuthStore()
 
 const dashboardStats = ref({
@@ -195,6 +197,23 @@ const dashboardStats = ref({
 const rifasRecentes = ref([])
 const isLoading = ref(true)
 const error = ref('')
+
+// ✅ CORRIGIDO: Função para navegar para a rifa
+const navegarParaRifa = (rifa) => {
+  console.log('🔗 Navegando para rifa:', rifa)
+  
+  if (!rifa || !rifa.id) {
+    console.warn('⚠️ Rifa inválida:', rifa)
+    return
+  }
+  
+  try {
+    // ✅ CORREÇÃO: Usar a rota correta sem "/gerenciar"
+    router.push(`/rifas/${rifa.id}`)
+  } catch (error) {
+    console.error('💥 Erro ao navegar:', error)
+  }
+}
 
 const formatCurrency = (value) => {
   return new Intl.NumberFormat('pt-BR', {
@@ -244,11 +263,18 @@ const carregarDashboard = async () => {
     isLoading.value = true
     error.value = ''
     
+    console.log('📊 Carregando dashboard...')
+    
     // Carregar dados do dashboard
     const [dashboardResponse, rifasResponse] = await Promise.all([
       reportsAPI.getDashboard(),
       rifasAPI.listMyRaffles({ limit: 5, sort: 'createdAt', order: 'desc' })
     ])
+    
+    console.log('📥 Respostas recebidas:', {
+      dashboard: dashboardResponse.data,
+      rifas: rifasResponse.data
+    })
     
     // Processar dados do dashboard
     if (dashboardResponse.data && dashboardResponse.data.success) {
@@ -273,15 +299,27 @@ const carregarDashboard = async () => {
       }
     }
     
-    // Processar rifas recentes
+    // ✅ CORRIGIDO: Processar rifas recentes garantindo que tenham ID
+    let rifasData = []
     if (rifasResponse.data && rifasResponse.data.success) {
-      rifasRecentes.value = rifasResponse.data.data || rifasResponse.data.raffles || []
+      rifasData = rifasResponse.data.data || rifasResponse.data.raffles || []
     } else {
-      rifasRecentes.value = rifasResponse.data.data || rifasResponse.data || []
+      rifasData = rifasResponse.data.data || rifasResponse.data || []
     }
     
+    // ✅ GARANTIR que todas as rifas tenham ID válido
+    rifasRecentes.value = rifasData
+      .filter(rifa => rifa && (rifa.id || rifa._id))
+      .map(rifa => ({
+        ...rifa,
+        id: rifa.id || rifa._id, // Garantir que sempre tenha ID
+        title: rifa.title || rifa.name || 'Rifa sem nome'
+      }))
+    
+    console.log('✅ Rifas processadas:', rifasRecentes.value)
+    
   } catch (err) {
-    console.error('Erro ao carregar dashboard:', err)
+    console.error('💥 Erro ao carregar dashboard:', err)
     error.value = err.message || 'Erro ao carregar dados do dashboard'
     
     // Em caso de erro, manter dados vazios em vez de dados mockados
@@ -305,6 +343,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* ===== MANTER TODOS OS ESTILOS EXISTENTES ===== */
 .dashboard {
   width: 100%;
   max-width: 100%;
@@ -455,7 +494,7 @@ onMounted(() => {
   }
 }
 
-/* Rifas List - Mobile/Desktop Layouts */
+/* ✅ CORRIGIDO: Rifas List - Garantir clicabilidade */
 .rifas-list {
   space-y: 1rem;
 }
@@ -467,17 +506,26 @@ onMounted(() => {
   transition: all 0.3s ease;
   cursor: pointer;
   margin-bottom: 1rem;
+  position: relative;
+  user-select: none; /* Evitar seleção de texto */
 }
 
 .rifa-item:hover {
   border-color: #667eea;
   background: #f8faff;
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.rifa-item:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
 }
 
 /* Mobile Layout */
 .rifa-mobile {
   padding: 1rem;
+  pointer-events: auto; /* Garantir eventos de clique */
 }
 
 .rifa-header {
@@ -556,6 +604,7 @@ onMounted(() => {
   align-items: center;
   gap: 1.5rem;
   padding: 1.5rem;
+  pointer-events: auto; /* Garantir eventos de clique */
 }
 
 .rifa-image {
