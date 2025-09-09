@@ -165,8 +165,9 @@
               <div class="select-wrapper" :class="{ 'error': errors.category }">
                 <select v-model="form.category" :disabled="isLoading" @change="clearFieldError('category')">
                   <option value="ELECTRONICS">Eletrônicos</option>
-                  <option value="AUTOMOTIVE">Automóveis</option>
-                  <option value="REAL_ESTATE">Imóveis</option>
+                  <option value="VEHICLES">Veículos</option>
+                  <option value="JEWELRY">Joias</option>
+                  <option value="APPLIANCES">Eletrodomésticos</option>
                   <option value="MONEY">Dinheiro</option>
                   <option value="OTHER">Outros</option>
                 </select>

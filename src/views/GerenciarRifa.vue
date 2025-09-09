@@ -1008,16 +1008,22 @@ const gerarRelatorio = async () => {
 }
 
 const enviarLink = () => {
-  const link = `${window.location.origin}/rifa/${rifa.value.id}`
+  // ✅ CORREÇÃO: Usar variável de ambiente para URL do frontend de vendas
+  const frontendUrl = import.meta.env.VITE_FRONTEND_URL
+  const link = `${frontendUrl}/${rifa.value.id}`
   
+  // ✅ NOVO: Abrir link em nova aba
+  window.open(link, '_blank')
+  
+  // ✅ MANTER: Também copiar para clipboard
   if (navigator.clipboard) {
     navigator.clipboard.writeText(link).then(() => {
-      showMessage('Link copiado para a área de transferência!', 'success')
+      showMessage('🔗 Link copiado e página aberta em nova aba!', 'success')
     }).catch(() => {
-      showMessage(`Link: ${link}`, 'info')
+      showMessage(`📋 Página aberta em nova aba! Link: ${link}`, 'info')
     })
   } else {
-    showMessage(`Link: ${link}`, 'info')
+    showMessage(`📋 Página aberta em nova aba! Link: ${link}`, 'info')
   }
 }
 
